@@ -7,7 +7,23 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased] — Phase 1: Design System
+## [Unreleased] — Phase 2: Public Website
+
+### Added
+- Public site layout (`apps/web/app/layouts/default.vue`) — AppNav + slot + AppFooter with dark-mode class root
+- `AppNav` component — sticky forest-colored nav with church name, Home/Sermons/About/Contact links, Give CTA, mobile hamburger drawer
+- `AppFooter` component — church address, quick links, service times, version string, copyright
+- Homepage (`/`) — hero with CTA, scripture callout, latest sermon featured card, upcoming events strip, connect CTA
+- Sermons listing page (`/sermons`) — grid of 6 placeholder sermon cards with title, speaker, scripture, series badge, date
+- About page (`/about`) — mission statement, Micah 6:8 scripture callout, service times, beliefs summary
+- Contact page (`/contact`) — form (name, email, message textarea, submit button) + church address sidebar
+- Vitest page + component tests (28 tests, TDD — tests written before implementation)
+- Nuxt auto-import stubs (`tests/setup.ts`) so pages run cleanly under vitest without a Nuxt instance
+- Static generation enabled via `nitro: { preset: 'static' }` in `nuxt.config.ts`
+
+---
+
+## [0.2.0] — Phase 1: Design System — 2026-05-23
 
 ### Added
 - Tailwind CSS v4 design tokens (`packages/config/src/tokens.css`) — forest, kootenai, gold, charcoal, stone palettes + Cinzel/Lora/DM Sans font stacks

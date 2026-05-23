@@ -24,6 +24,11 @@ export default defineNuxtConfig({
     compatibilityVersion: 4,
   },
 
+  // Static generation for Cloudflare Pages deployment (nuxt generate)
+  nitro: {
+    preset: 'static',
+  },
+
   vite: {
     plugins: [tailwindcss()],
   },
