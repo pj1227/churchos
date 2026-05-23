@@ -30,13 +30,14 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: pnpm turbo lint
+        # Exclude @churchos/api — Python linting (ruff) runs in the pytest job
+        run: pnpm turbo lint --filter=!@churchos/api
 
       - name: Type-check
-        run: pnpm turbo type-check
+        run: pnpm turbo type-check --filter=!@churchos/api
 
       - name: Build
-        run: pnpm turbo build
+        run: pnpm turbo build --filter=!@churchos/api
 
       - name: Test (vitest)
         run: pnpm turbo test --filter=@churchos/web --filter=@churchos/admin --filter=@churchos/ui
@@ -61,6 +62,9 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      - name: Lint (ruff)
+        run: ruff check .
 
       - name: Run tests
         run: pytest --tb=short
