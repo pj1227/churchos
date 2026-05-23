@@ -1,0 +1,20 @@
+{
+  "name": "@churchos/config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tailwind": "./tailwind.config.ts"
+  },
+  "scripts": {
+    "build": "echo 'config: no build step in Phase 0'",
+    "lint": "echo 'config: no lint'",
+    "type-check": "tsc --noEmit",
+    "test": "echo 'config: no tests in Phase 0'"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}
