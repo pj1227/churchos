@@ -1,5 +1,5 @@
 /**
- * apps/admin/assets/css/main.css — CSS entry point for the admin dashboard.
+ * apps/admin/app/assets/css/main.css — CSS entry point for the admin dashboard.
  *
  * What it does:
  *   Pulls in the full Tailwind v4 base, the shared ChurchOS design tokens,
@@ -7,10 +7,14 @@
  *
  * Why it exists at this layer:
  *   Admin has its own CSS entry so Tailwind's content scanner sees admin-only
- *   templates and can purge unused classes independently.
+ *   templates and can purge unused classes independently from apps/web.
+ *
+ * Why it lives under app/ and not the project root:
+ *   In Nuxt 4 the srcDir is app/ — the ~ alias resolves here, so
+ *   ~/assets/css/main.css maps to app/assets/css/main.css.
  *
  * How it connects:
- *   Referenced by nuxt.config.ts css: ['~/assets/css/main.css'].
+ *   Referenced by nuxt.config.ts → css: ['~/assets/css/main.css'].
  *   The @tailwindcss/vite plugin processes this file at build time.
  */
 
