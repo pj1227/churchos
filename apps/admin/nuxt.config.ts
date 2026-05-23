@@ -2,23 +2,30 @@
  * nuxt.config.ts — Admin dashboard (apps/admin)
  *
  * What it does:
- *   Configures the Nuxt 4 app for the staff admin dashboard. Runs as a
- *   server-side rendered app (not statically generated) so route guards
- *   and JWT checks can happen server-side.
+ *   Configures the Nuxt 4 app for the staff admin dashboard. Wires up
+ *   Tailwind CSS v4 via the @tailwindcss/vite plugin and loads the shared
+ *   design tokens from packages/config.
  *
  * Why it exists at this layer:
  *   Separate from apps/web because the admin app has different build
  *   targets, auth requirements, and deployment config.
  *
  * How it connects:
- *   - Extends @churchos/config for shared Tailwind tokens
+ *   - vite.plugins: [@tailwindcss/vite] processes assets/css/main.css
+ *   - assets/css/main.css imports tailwindcss + @churchos/config tokens
  *   - @nuxtjs/color-mode enables dark mode via class strategy
  */
+import tailwindcss from '@tailwindcss/vite'
+
 export default defineNuxtConfig({
   compatibilityDate: '2024-11-01',
 
   future: {
     compatibilityVersion: 4,
+  },
+
+  vite: {
+    plugins: [tailwindcss()],
   },
 
   modules: [

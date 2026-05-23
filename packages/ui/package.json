@@ -8,7 +8,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "echo 'ui: no build step in Phase 0'",
+    "build": "echo 'ui: no separate build step — consumed directly via workspace'",
     "lint": "eslint src/",
     "type-check": "tsc --noEmit",
     "test": "vitest run"
@@ -17,6 +17,7 @@
     "vue": "^3.5.0"
   },
   "devDependencies": {
+    "@vitejs/plugin-vue": "^5.1.0",
     "@vue/test-utils": "^2.4.0",
     "happy-dom": "^15.0.0",
     "typescript": "^5.5.0",

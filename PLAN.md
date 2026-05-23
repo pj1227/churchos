@@ -1,7 +1,7 @@
 # ChurchOS — Master Build Plan
 
 **Version:** 0.1.0 (pre-release — "Kootenai" targets 1.0.0)  
-**Last updated:** 2026-05-22  
+**Last updated:** 2026-05-23  
 **Target deployment:** libbynaz.org (prototype → multi-church)
 
 ---
@@ -77,8 +77,8 @@ feature/* ──► dev ──► staging ──► main (production)
 
 | # | Name | Branch | Status |
 |---|------|--------|--------|
-| 0 | Repo & tooling | `feature/phase-0-repo-setup` | 🔲 pending |
-| 1 | Design system | `feature/phase-1-design-system` | 🔲 pending |
+| 0 | Repo & tooling | `feature/phase-0-repo-setup` | ✅ complete |
+| 1 | Design system | `feature/phase-1-design-system` | 🚧 in progress |
 | 2 | Public website | `feature/phase-2-public-site` | 🔲 pending |
 | 3 | Auth & database | `feature/phase-3-supabase-auth` | 🔲 pending |
 | 4 | Admin dashboard | `feature/phase-4-admin-dashboard` | 🔲 pending |

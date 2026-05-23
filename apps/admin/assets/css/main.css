@@ -1,2 +1,19 @@
-/* Phase 1 will populate this with Tailwind directives and design tokens.
-   For Phase 0 this file just needs to exist so nuxt.config.ts doesn't error. */
+/**
+ * apps/admin/assets/css/main.css — CSS entry point for the admin dashboard.
+ *
+ * What it does:
+ *   Pulls in the full Tailwind v4 base, the shared ChurchOS design tokens,
+ *   and the shared component utility classes.
+ *
+ * Why it exists at this layer:
+ *   Admin has its own CSS entry so Tailwind's content scanner sees admin-only
+ *   templates and can purge unused classes independently.
+ *
+ * How it connects:
+ *   Referenced by nuxt.config.ts css: ['~/assets/css/main.css'].
+ *   The @tailwindcss/vite plugin processes this file at build time.
+ */
+
+@import "tailwindcss";
+@import "@churchos/config/tokens.css";
+@import "@churchos/config/components.css";
