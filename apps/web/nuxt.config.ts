@@ -2,22 +2,35 @@
  * nuxt.config.ts — Public website (apps/web)
  *
  * What it does:
- *   Configures the Nuxt 4 app for the public church website. Extends the
- *   shared Tailwind design token config from packages/config.
+ *   Configures the Nuxt 4 app for the public church website. Wires up
+ *   Tailwind CSS v4 via the @tailwindcss/vite plugin and loads the shared
+ *   design tokens from packages/config.
  *
  * Why it exists at this layer:
  *   Each Nuxt app needs its own config. This one enables static generation
  *   (nuxt generate) for Cloudflare Pages deployment.
  *
  * How it connects:
- *   - Extends @churchos/config for shared Tailwind tokens
+ *   - vite.plugins: [@tailwindcss/vite] processes assets/css/main.css
+ *   - assets/css/main.css imports tailwindcss + @churchos/config tokens
  *   - @nuxtjs/color-mode enables dark mode via class strategy
  */
+import tailwindcss from '@tailwindcss/vite'
+
 export default defineNuxtConfig({
   compatibilityDate: '2024-11-01',
 
   future: {
     compatibilityVersion: 4,
+  },
+
+  // Static generation for Cloudflare Pages deployment (nuxt generate)
+  nitro: {
+    preset: 'static',
+  },
+
+  vite: {
+    plugins: [tailwindcss()],
   },
 
   modules: [

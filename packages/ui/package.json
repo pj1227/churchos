@@ -8,18 +8,23 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "echo 'ui: no build step in Phase 0'",
+    "build": "echo 'ui: no separate build step — consumed directly via workspace'",
     "lint": "eslint src/",
-    "type-check": "tsc --noEmit",
+    "type-check": "vue-tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
     "vue": "^3.5.0"
   },
   "devDependencies": {
+    "@vitejs/plugin-vue": "^5.1.0",
     "@vue/test-utils": "^2.4.0",
     "happy-dom": "^15.0.0",
     "typescript": "^5.5.0",
-    "vitest": "^2.1.0"
+    "vitest": "^2.1.0",
+    "eslint": "^9.0.0",
+    "eslint-plugin-vue": "^9.0.0",
+    "typescript-eslint": "^8.0.0",
+    "vue-tsc": "^2.0.0"
   }
 }
