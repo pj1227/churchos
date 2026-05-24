@@ -10,7 +10,7 @@
   "scripts": {
     "build": "echo 'ui: no separate build step — consumed directly via workspace'",
     "lint": "eslint src/",
-    "type-check": "tsc --noEmit",
+    "type-check": "vue-tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
@@ -24,6 +24,7 @@
     "vitest": "^2.1.0",
     "eslint": "^9.0.0",
     "eslint-plugin-vue": "^9.0.0",
-    "typescript-eslint": "^8.0.0"
+    "typescript-eslint": "^8.0.0",
+    "vue-tsc": "^2.0.0"
   }
 }
