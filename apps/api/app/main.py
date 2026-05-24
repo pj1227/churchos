@@ -57,7 +57,9 @@ app.add_middleware(
 # Routes
 # ---------------------------------------------------------------------------
 from app.routers import auth as auth_router
+from app.routers import profile as profile_router
 app.include_router(auth_router.router)
+app.include_router(profile_router.router)
 @app.get("/health", tags=["meta"])
 async def health() -> dict:
     """
