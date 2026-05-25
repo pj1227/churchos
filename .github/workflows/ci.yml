@@ -28,13 +28,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: pnpm turbo lint
+        run: pnpm turbo lint --filter=!@churchos/api
 
       - name: Type-check
-        run: pnpm turbo type-check
+        run: pnpm turbo type-check --filter=!@churchos/api
 
       - name: Build
-        run: pnpm turbo build
+        run: pnpm turbo build --filter=!@churchos/api
 
       - name: Test (vitest)
         run: pnpm turbo test --filter=@churchos/web --filter=@churchos/admin --filter=@churchos/ui
@@ -52,12 +52,16 @@ jobs:
 
       - name: Setup Python
         uses: actions/setup-python@v5
+        with:
           python-version: '3.12'
           cache: 'pip'
           cache-dependency-path: apps/api/requirements.txt
 
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      - name: Lint (ruff)
+        run: ruff check .
 
       - name: Run tests
         run: pytest --tb=short
