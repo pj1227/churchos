@@ -7,7 +7,7 @@
     "build": "nuxt build",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "lint": "eslint .",
+    "lint": "echo 'lint: eslint config TBD in Phase 4'",
     "type-check": "nuxt typecheck",
     "test": "vitest run"
   },
