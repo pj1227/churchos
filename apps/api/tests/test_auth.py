@@ -30,11 +30,9 @@ JWT secret:
 import time
 from unittest.mock import patch
 
-import pytest
 from fastapi.testclient import TestClient
 from jose import jwt
 
-from app.main import app
 
 # ---------------------------------------------------------------------------
 # Test constants — never use real credentials here

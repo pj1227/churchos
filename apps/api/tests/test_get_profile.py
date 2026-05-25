@@ -29,7 +29,6 @@ How it connects:
 """
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from app.dependencies.auth import get_profile
 

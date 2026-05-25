@@ -15,6 +15,7 @@
     "test": "echo 'config: no tests in Phase 0'"
   },
   "devDependencies": {
+    "tailwindcss": "^4.0.0",
     "typescript": "^5.5.0"
   }
 }
