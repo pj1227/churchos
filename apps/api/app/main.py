@@ -22,6 +22,8 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.routers import me as me_router
+
 # ---------------------------------------------------------------------------
 # Version — read from repo root version.json (single source of truth)
 # ---------------------------------------------------------------------------
@@ -54,12 +56,14 @@ app.add_middleware(
 
 
 # ---------------------------------------------------------------------------
+# Routers
+# ---------------------------------------------------------------------------
+app.include_router(me_router.router)
+
+
+# ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
-from app.routers import auth as auth_router
-from app.routers import profile as profile_router
-app.include_router(auth_router.router)
-app.include_router(profile_router.router)
 @app.get("/health", tags=["meta"])
 async def health() -> dict:
     """
