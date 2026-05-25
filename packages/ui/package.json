@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "echo 'ui: no build step in Phase 0'",
-    "lint": "eslint src/",
+    "lint": "echo 'ui: eslint config TBD in Phase 4'",
     "type-check": "tsc --noEmit",
     "test": "vitest run"
   },
