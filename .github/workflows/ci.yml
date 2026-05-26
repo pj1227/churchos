@@ -17,8 +17,6 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -30,13 +28,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: pnpm turbo lint
+        run: pnpm turbo lint --filter=!@churchos/api
 
       - name: Type-check
-        run: pnpm turbo type-check
+        run: pnpm turbo type-check --filter=!@churchos/api
 
       - name: Build
-        run: pnpm turbo build
+        run: pnpm turbo build --filter=!@churchos/api
 
       - name: Test (vitest)
         run: pnpm turbo test --filter=@churchos/web --filter=@churchos/admin --filter=@churchos/ui
@@ -62,5 +60,8 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Lint (ruff)
+        run: python -m ruff check .
+
       - name: Run tests
-        run: pytest --tb=short
+        run: python -m pytest --tb=short
