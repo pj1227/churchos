@@ -10,7 +10,7 @@
   "scripts": {
     "build": "echo 'ui: no build step in Phase 0'",
     "lint": "echo 'ui: eslint config TBD in Phase 4'",
-    "type-check": "tsc --noEmit",
+    "type-check": "vue-tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
@@ -20,6 +20,7 @@
     "@vue/test-utils": "^2.4.0",
     "happy-dom": "^15.0.0",
     "typescript": "^5.5.0",
-    "vitest": "^2.1.0"
+    "vitest": "^2.1.0",
+    "vue-tsc": "^3.3.1"
   }
 }
