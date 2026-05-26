@@ -113,10 +113,11 @@ importers:
         version: 3.3.1(typescript@5.9.3)
 
   packages/config:
-    devDependencies:
+    dependencies:
       tailwindcss:
         specifier: ^4.0.0
         version: 4.3.0
+    devDependencies:
       typescript:
         specifier: ^5.5.0
         version: 5.9.3
