@@ -31,6 +31,7 @@ jobs:
       - name: Build web
         run: pnpm turbo build --filter=@churchos/web
         env:
+          NITRO_PRESET: cloudflare-pages
           NUXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
           NUXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PROD_SUPABASE_ANON_KEY }}
 
