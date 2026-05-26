@@ -8,6 +8,9 @@ jobs:
   deploy-web-staging:
     name: Deploy web → Cloudflare Pages (staging)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,7 +40,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           projectName: churchos-staging
-          directory: apps/web/.output/public
+          directory: apps/web/dist
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
   deploy-api-staging:
@@ -54,10 +57,10 @@ jobs:
         run: railway up --service churchos-api-staging
         working-directory: apps/api
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
       - name: Run migrations
         run: railway run --service churchos-api-staging alembic upgrade head
         working-directory: apps/api
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
