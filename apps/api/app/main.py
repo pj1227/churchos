@@ -22,6 +22,8 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.routers import me as me_router
+
 # ---------------------------------------------------------------------------
 # Version — read from repo root version.json (single source of truth)
 # ---------------------------------------------------------------------------
@@ -51,6 +53,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ---------------------------------------------------------------------------
+# Routers
+# ---------------------------------------------------------------------------
+app.include_router(me_router.router)
 
 
 # ---------------------------------------------------------------------------
