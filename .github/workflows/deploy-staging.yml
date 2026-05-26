@@ -35,13 +35,11 @@ jobs:
           NUXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
 
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
+        uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: churchos-staging
-          directory: apps/web/dist
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          command: pages deploy apps/web/dist --project-name=churchos-staging
 
   deploy-api-staging:
     name: Deploy API → Railway (staging)
@@ -49,18 +47,5 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Deploy to Railway (staging)
-        run: railway up --service churchos-api-staging
-        working-directory: apps/api
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-
-      - name: Run migrations
-        run: railway run --service churchos-api-staging alembic upgrade head
-        working-directory: apps/api
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      - name: Skip Railway staging
+        run: echo "Railway staging environment not yet configured — skipping"
