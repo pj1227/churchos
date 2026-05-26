@@ -36,8 +36,8 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: churchos-production
-          directory: apps/web/.output/public
+          projectName: churchos
+          directory: apps/web/dist
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
   deploy-api-production:

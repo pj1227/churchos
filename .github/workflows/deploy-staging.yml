@@ -37,7 +37,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           projectName: churchos-staging
-          directory: apps/web/.output/public
+          directory: apps/web/dist
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
   deploy-api-staging:
