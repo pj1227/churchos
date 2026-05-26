@@ -3,8 +3,7 @@
  *
  * What it does:
  *   Configures the Nuxt 4 app for the public church website. Wires up
- *   Tailwind CSS v4 via the @tailwindcss/vite plugin and loads the shared
- *   design tokens from packages/config.
+ *   Tailwind CSS v4 via the @tailwindcss/vite plugin for static generation.
  *
  * Why it exists at this layer:
  *   Each Nuxt app needs its own config. This one enables static generation
@@ -12,39 +11,27 @@
  *
  * How it connects:
  *   - vite.plugins: [@tailwindcss/vite] processes assets/css/main.css
- *   - assets/css/main.css imports tailwindcss + @churchos/config tokens
  *   - @nuxtjs/color-mode enables dark mode via class strategy
  */
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineNuxtConfig({
   compatibilityDate: '2024-11-01',
-
   future: {
     compatibilityVersion: 4,
   },
-
-  // Static generation for Cloudflare Pages deployment (nuxt generate)
-  nitro: {
-    preset: 'static',
-  },
-
   vite: {
     plugins: [tailwindcss()],
   },
-
   modules: [
     '@nuxtjs/color-mode',
   ],
-
   colorMode: {
     classSuffix: '',
     preference: 'system',
     fallback: 'light',
   },
-
   css: ['~/assets/css/main.css'],
-
   app: {
     head: {
       title: 'Libby Church of the Nazarene',
@@ -54,10 +41,7 @@ export default defineNuxtConfig({
         { name: 'description', content: 'Welcome to Libby Church of the Nazarene' },
       ],
       link: [
-        {
-          rel: 'preconnect',
-          href: 'https://fonts.googleapis.com',
-        },
+        { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         {
           rel: 'stylesheet',
           href: 'https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@400;500;600&display=swap',

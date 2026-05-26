@@ -17,8 +17,6 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        # version is intentionally omitted — action-setup@v4 reads the
-        # "packageManager" field from package.json automatically
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -30,7 +28,6 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Lint
-        # Exclude @churchos/api — Python linting (ruff) runs in the pytest job
         run: pnpm turbo lint --filter=!@churchos/api
 
       - name: Type-check
@@ -64,7 +61,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Lint (ruff)
-        run: ruff check .
+        run: python -m ruff check .
 
       - name: Run tests
-        run: pytest --tb=short
+        run: python -m pytest --tb=short

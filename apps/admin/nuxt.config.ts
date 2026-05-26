@@ -30,12 +30,29 @@ export default defineNuxtConfig({
 
   modules: [
     '@nuxtjs/color-mode',
+    '@nuxtjs/supabase',
+    '@pinia/nuxt',
   ],
 
   colorMode: {
     classSuffix: '',
     preference: 'system',
     fallback: 'light',
+  },
+
+  supabase: {
+    // We handle redirects ourselves in middleware/auth.ts
+    redirect: false,
+    // Env var names for the Supabase client
+    url: process.env.NUXT_PUBLIC_SUPABASE_URL,
+    key: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY,
+  },
+
+  runtimeConfig: {
+    public: {
+      supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL ?? '',
+      supabaseAnonKey: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+    },
   },
 
   css: ['~/assets/css/main.css'],
