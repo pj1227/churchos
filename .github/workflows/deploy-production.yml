@@ -35,13 +35,11 @@ jobs:
           NUXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PROD_SUPABASE_ANON_KEY }}
 
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
+        uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: churchos
-          directory: apps/web/dist
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          command: pages deploy apps/web/dist --project-name=churchos
 
   deploy-api-production:
     name: Deploy API → Railway (production)
@@ -54,13 +52,13 @@ jobs:
         run: npm install -g @railway/cli
 
       - name: Deploy to Railway (production)
-        run: railway up --service churchos-api-prod
+        run: railway up --service churchos
         working-directory: apps/api
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
       - name: Run migrations
-        run: railway run --service churchos-api-prod alembic upgrade head
+        run: railway run --service churchos alembic upgrade head
         working-directory: apps/api
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
