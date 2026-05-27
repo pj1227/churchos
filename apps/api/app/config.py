@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     # App
     # ------------------------------------------------------------------
     church_slug: str = "libby-naz"
+    church_id:   str = ""   # UUID of the default church row in public.churches
 
 
 settings = Settings()
