@@ -64,4 +64,5 @@ jobs:
 
       - name: Post deployment notification
         run: |
-          echo "✅ ChurchOS v$(cat version.json | python3 -c \"import sys,json; print(json.load(sys.stdin)['version'])\") deployed to production"
+          VERSION=$(python3 -c "import json; print(json.load(open('version.json'))['version'])")
+          echo "✅ ChurchOS v${VERSION} deployed to production"
