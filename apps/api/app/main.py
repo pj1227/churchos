@@ -23,6 +23,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import me as me_router
+from app.routers import sermons as sermons_router
+from app.routers import events as events_router
 
 # ---------------------------------------------------------------------------
 # Version — read from repo root version.json (single source of truth)
@@ -58,6 +60,8 @@ app.add_middleware(
 # Routers
 # ---------------------------------------------------------------------------
 app.include_router(me_router.router)
+app.include_router(sermons_router.router)
+app.include_router(events_router.router)
 
 
 # ---------------------------------------------------------------------------

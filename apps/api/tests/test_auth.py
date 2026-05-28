@@ -18,7 +18,7 @@ Failure modes this covers:
   7. Valid token + no profile in DB  → 404
 
 How it connects:
-  - Uses python-jose (already in requirements.txt) to mint test JWTs.
+  - Uses PyJWT (already in requirements.txt) to mint test JWTs.
   - Mocks `app.dependencies.auth.get_profile` so tests never hit the DB.
   - The `client` fixture comes from conftest.py.
 
@@ -31,7 +31,7 @@ import time
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
-from jose import jwt
+import jwt
 
 
 # ---------------------------------------------------------------------------
