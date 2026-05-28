@@ -44,6 +44,8 @@ def list_events(
 ) -> list[dict]:
     """Return upcoming events for a church, ordered by start_at ascending."""
     cid = church_id or settings.church_id
+    if not cid:
+        return []
     params: dict = {
         "church_id": f"eq.{cid}",
         "order":     "start_at.asc",
