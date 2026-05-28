@@ -23,16 +23,17 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import me as me_router
+from app.routers import sermons as sermons_router
+from app.routers import events as events_router
 
 # ---------------------------------------------------------------------------
 # Version — read from repo root version.json (single source of truth)
 # ---------------------------------------------------------------------------
-_VERSION_FILE = Path(__file__).resolve().parents[3] / "version.json"
-
 try:
+    _VERSION_FILE = Path(__file__).resolve().parents[3] / "version.json"
     _version_data: dict = json.loads(_VERSION_FILE.read_text())
-except FileNotFoundError:
-    _version_data = {"version": "0.0.0", "codename": "unknown"}
+except (FileNotFoundError, IndexError):
+    _version_data = {"version": "0.1.0", "codename": "Kootenai"}
 
 VERSION: str = _version_data["version"]
 CODENAME: str = _version_data["codename"]
@@ -59,6 +60,8 @@ app.add_middleware(
 # Routers
 # ---------------------------------------------------------------------------
 app.include_router(me_router.router)
+app.include_router(sermons_router.router)
+app.include_router(events_router.router)
 
 
 # ---------------------------------------------------------------------------

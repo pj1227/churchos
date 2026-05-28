@@ -53,15 +53,14 @@ jobs:
 
       - name: Deploy to Railway (production)
         run: railway up --service churchos
-        working-directory: apps/api
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
-      - name: Run migrations
-        run: railway run --service churchos alembic upgrade head
-        working-directory: apps/api
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      # Migrations skipped until DATABASE_URL is configured in Railway
+      # - name: Run migrations
+      #   run: railway run --service churchos alembic upgrade head
+      #   env:
+      #     RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
       - name: Post deployment notification
         run: |
