@@ -29,7 +29,6 @@ import uuid
 from unittest.mock import patch
 
 import jwt
-import pytest
 from fastapi.testclient import TestClient
 
 # ---------------------------------------------------------------------------
