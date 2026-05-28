@@ -56,6 +56,8 @@ def list_sermons(
     published_only=True filters to is_published=true rows only.
     """
     cid = church_id or settings.church_id
+    if not cid:
+        return []
     params: dict = {
         "church_id": f"eq.{cid}",
         "order":     "date.desc",
