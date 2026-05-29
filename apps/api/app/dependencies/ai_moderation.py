@@ -3,9 +3,12 @@ dependencies/ai_moderation.py — AI content moderation for prayer submissions.
 
 What it does:
   `moderate_prayer_request(body)` sends the prayer request text to the
-  Anthropic Claude API and returns a moderation result:
+  xAI Grok API and returns a moderation result:
     {"approved": True,  "reason": None}
     {"approved": False, "reason": "...explanation..."}
+
+  xAI's API is OpenAI-compatible, so the request format is standard chat
+  completions. Free tier available at console.x.ai.
 
   The function is intentionally NOT a FastAPI Depends — it's a plain sync
   function so it's easy to patch in tests:
@@ -13,25 +16,32 @@ What it does:
 
 Why it exists at this layer:
   Isolating AI calls here keeps router logic clean and makes this layer
-  independently testable. The router calls this, inspects the result,
-  and passes ai_approved + ai_reason to the CRUD layer.
+  independently testable and swappable.
 
 How it connects:
   - app/routers/prayer_requests.py calls moderate_prayer_request() on every POST.
-  - app/config.py supplies anthropic_api_key.
+  - app/config.py supplies grok_api_key.
   - tests/test_prayer_requests.py patches this function.
 
 Graceful degradation:
-  If the Anthropic API is unavailable (network error, rate limit, etc.),
-  the request is approved with ai_score=None (fail-open).
-  This ensures a service disruption doesn't silently block all prayers.
+  If GROK_API_KEY is not set or the API is unavailable, the request is
+  approved (fail-open). A Redis or AI outage should never silently block
+  someone from submitting a prayer request.
 
 Phase 6 note:
-  When Gloo AI integration lands (Phase 6), this will be updated to call
-  Gloo first and fall back to Anthropic. The interface stays the same.
+  When Gloo AI integration lands, this becomes the fallback in a provider
+  chain: Gloo → Grok → fail-open. The interface (`moderate_prayer_request`)
+  stays the same — only the internals change.
+
+Phase 9 note:
+  Provider selection and API keys will be configurable per-deployment via
+  the admin settings UI, stored encrypted in site_config.
 """
 
+import json
 import logging
+
+import httpx
 
 from app.config import settings
 
@@ -62,46 +72,42 @@ Do not include any other text. Only the JSON object.
 
 def moderate_prayer_request(body: str) -> dict:
     """
-    Check prayer request body with Claude.
+    Check prayer request body with Grok (xAI).
 
     Returns:
-        {"approved": True,  "reason": None}       — content is appropriate
-        {"approved": False, "reason": "..."}       — content flagged, include reason
-        {"approved": True,  "reason": None}        — on API error (fail-open)
+        {"approved": True,  "reason": None}   — content is appropriate
+        {"approved": False, "reason": "..."}   — content flagged
+        {"approved": True,  "reason": None}    — on missing key or API error (fail-open)
 
-    This function is patchable in tests:
+    Patchable in tests:
         patch("app.dependencies.ai_moderation.moderate_prayer_request",
               return_value={"approved": True, "reason": None})
     """
-    import json
-
-    api_key = settings.anthropic_api_key
+    api_key = settings.grok_api_key
     if not api_key:
-        logger.warning("ANTHROPIC_API_KEY not set — skipping AI moderation (approving)")
+        logger.warning("GROK_API_KEY not set — skipping AI moderation (approving)")
         return {"approved": True, "reason": None}
 
     try:
-        import httpx
-
         resp = httpx.post(
-            "https://api.anthropic.com/v1/messages",
+            "https://api.x.ai/v1/chat/completions",
             headers={
-                "x-api-key":         api_key,
-                "anthropic-version": "2023-06-01",
-                "content-type":      "application/json",
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type":  "application/json",
             },
             json={
-                "model":      "claude-haiku-4-5-20251001",
-                "max_tokens": 100,
-                "system":     _SYSTEM_PROMPT,
+                "model":       "grok-3-mini",
+                "max_tokens":  100,
+                "temperature": 0,
                 "messages": [
-                    {"role": "user", "content": body},
+                    {"role": "system", "content": _SYSTEM_PROMPT},
+                    {"role": "user",   "content": body},
                 ],
             },
             timeout=10.0,
         )
         resp.raise_for_status()
-        raw = resp.json()["content"][0]["text"].strip()
+        raw = resp.json()["choices"][0]["message"]["content"].strip()
         result = json.loads(raw)
         return {
             "approved": bool(result.get("approved", True)),
