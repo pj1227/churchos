@@ -35,3 +35,11 @@ vi.stubGlobal('useColorMode', () => ({
 vi.stubGlobal('useRoute', () => ({ params: {}, query: {}, path: '/' }))
 vi.stubGlobal('useRouter', () => ({ push: vi.fn(), replace: vi.fn() }))
 vi.stubGlobal('navigateTo', vi.fn())
+
+// Runtime config — tests override apiBase per-test when needed
+vi.stubGlobal('useRuntimeConfig', () => ({
+  public: { apiBase: 'https://api.test' },
+}))
+
+// $fetch — default no-op; tests override per-test with vi.stubGlobal
+vi.stubGlobal('$fetch', vi.fn())
