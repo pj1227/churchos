@@ -31,6 +31,12 @@ export default defineNuxtConfig({
     preference: 'system',
     fallback: 'light',
   },
+  runtimeConfig: {
+    public: {
+      // Set NUXT_PUBLIC_API_BASE in Cloudflare Pages env vars
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'https://churchos-production-c6ae.up.railway.app',
+    },
+  },
   css: ['~/assets/css/main.css'],
   app: {
     head: {
