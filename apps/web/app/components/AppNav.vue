@@ -31,10 +31,11 @@ function toggleDark() {
 }
 
 const navLinks = [
-  { label: 'Home',     to: '/' },
-  { label: 'Sermons',  to: '/sermons' },
-  { label: 'About',    to: '/about' },
-  { label: 'Contact',  to: '/contact' },
+  { label: 'Home',    to: '/' },
+  { label: 'Sermons', to: '/sermons' },
+  { label: 'Prayer',  to: '/prayer' },
+  { label: 'About',   to: '/about' },
+  { label: 'Contact', to: '/contact' },
 ]
 </script>
 
