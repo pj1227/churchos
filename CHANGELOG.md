@@ -1,55 +1,103 @@
 # Changelog
 
-All notable changes to ChurchOS will be documented here.
-
-Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
-Versioning follows [Semantic Versioning](https://semver.org/).
+All notable changes to ChurchOS are documented here.
+Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
 
 ---
 
-## [Unreleased] — Phase 2: Public Website
+## [Unreleased]
 
-### Added
-- Public site layout (`apps/web/app/layouts/default.vue`) — AppNav + slot + AppFooter with dark-mode class root
-- `AppNav` component — sticky forest-colored nav with church name, Home/Sermons/About/Contact links, Give CTA, mobile hamburger drawer
-- `AppFooter` component — church address, quick links, service times, version string, copyright
-- Homepage (`/`) — hero with CTA, scripture callout, latest sermon featured card, upcoming events strip, connect CTA
-- Sermons listing page (`/sermons`) — grid of 6 placeholder sermon cards with title, speaker, scripture, series badge, date
-- About page (`/about`) — mission statement, Micah 6:8 scripture callout, service times, beliefs summary
-- Contact page (`/contact`) — form (name, email, message textarea, submit button) + church address sidebar
-- Vitest page + component tests (28 tests, TDD — tests written before implementation)
-- Nuxt auto-import stubs (`tests/setup.ts`) so pages run cleanly under vitest without a Nuxt instance
-- Static generation enabled via `nitro: { preset: 'static' }` in `nuxt.config.ts`
+### Phase 5 — Prayer Board (in progress)
 
----
+#### Added
+- `apps/api/tests/test_prayer_requests.py` — 20 TDD tests (written before implementation)
+- `apps/api/alembic/versions/d4e5f6a7b8c9_create_prayer_requests_table.py` — `public.prayer_requests` with RLS enabled
+- `apps/api/app/schemas/prayer_request.py` — `PrayerRequestCreate`, `PrayerRequestRead`, `PrayerRequestModerate`
+- `apps/api/app/crud/prayer_requests.py` — Supabase CRUD (create, list by status, get, moderate)
+- `apps/api/app/dependencies/rate_limit.py` — 3 submissions/IP/hour via Upstash Redis; fail-open on unavailability
+- `apps/api/app/dependencies/ai_moderation.py` — Anthropic Claude content moderation; fail-open on API unavailability
+- `apps/api/app/routers/prayer_requests.py` — POST (public), GET (member+), GET /pending (staff+), PATCH (staff+)
+- `apps/api/app/config.py` — `upstash_redis_url`, `upstash_redis_token`, `anthropic_api_key` settings
 
-## [0.2.0] — Phase 1: Design System — 2026-05-23
-
-### Added
-- Tailwind CSS v4 design tokens (`packages/config/src/tokens.css`) — forest, kootenai, gold, charcoal, stone palettes + Cinzel/Lora/DM Sans font stacks
-- Shared Vue component library (`packages/ui`): CoButton, CoCard, CoCardFeatured, CoBadge, CoFormInput, CoScriptureCallout, CoContainer, CoSection
-- Vitest component tests for all UI components (TDD — tests written before implementation)
-- Dark mode wired into both Nuxt apps via `@nuxtjs/color-mode` class strategy
-- Design system demo page at `/design` in apps/web
+#### Pending in Phase 5
+- Alembic migration applied in Supabase production
+- Railway env vars: `UPSTASH_REDIS_URL`, `UPSTASH_REDIS_TOKEN`, `ANTHROPIC_API_KEY`
+- Public submission form (`apps/web`)
+- Admin moderation queue page (`apps/admin`)
 
 ---
 
-## [0.1.0] — Phase 0: Repo & Tooling — 2026-05-23
+## [0.1.0] — 2026-05-28 "Kootenai" pre-release
 
-### Added
-- pnpm workspaces + Turborepo v2 monorepo scaffold
-- `apps/web` — Nuxt 4 public site stub (compatibilityVersion: 4)
-- `apps/admin` — Nuxt 4 admin dashboard stub (port 3001, noindex)
-- `apps/api` — FastAPI (Python 3.12) with `/health` endpoint
-- `packages/ui` — shared Vue component library stub
-- `packages/types` — shared TypeScript definitions (Role, VersionInfo)
-- `packages/config` — Tailwind design token stub (forest, kootenai, gold, charcoal, stone palettes; Cinzel/Lora/DM Sans fonts)
-- `version.json` — single source of truth for version (`0.1.0`) and codename (`Kootenai`)
-- GitHub Actions: `ci.yml` (lint + type-check + build + pytest on PRs), `deploy-staging.yml`, `deploy-production.yml`
-- Branch protection on `main` and `staging` (PR required, CI must pass, no direct pushes)
-- 4 passing pytest TDD tests for `/health` endpoint (status, version, codename)
-- `.gitignore` covering Node, Python, Nuxt, editors, .env files
+### Phase 4 — Admin Dashboard
 
-### Repository
-- GitHub: https://github.com/pj1227/churchos (public)
-- Branches: `main`, `staging`, `dev`, `feature/phase-0-repo-setup`
+#### Added
+- `apps/admin` — Full admin dashboard Nuxt 4 application
+- `layouts/default.vue` — Persistent sidebar with ChurchOS brand, nav, version badge; topbar with user identity and sign-out
+- `pages/index.vue` — Dashboard landing page with quick-nav cards to Sermons and Events
+- `pages/sermons/index.vue` — Sermon list table with Published/Draft badges and edit links
+- `pages/sermons/[id]/edit.vue` — Sermon PATCH form; preserves Logos-synced fields
+- `pages/events/index.vue` — Event list table with Published/Draft badges and edit links
+- `pages/events/[id]/edit.vue` — Event PATCH form with all fields and toggles
+- `apps/api/app/dependencies/rbac.py` — `require_role()` dependency factory (guest → superadmin)
+- Sermon and Event schemas, models, CRUD, and routers
+- Alembic migrations for `sermons` and `church_events` tables
+- `CHURCH_ID` env var support; guard returns `[]` when not configured
+
+#### Fixed
+- Replaced `python-jose` with `PyJWT>=2.8.0` (incompatible with `cryptography>=42` on Railway Python 3.13)
+- Removed unused `import pytest` flagged by ruff F401
+- `pnpm-lock.yaml` stale `@railway/cli` specifier removed
+- `IndexError` in `main.py` when resolving parent paths in Railway container
+
+#### Infrastructure
+- Railway env vars configured: `CHURCH_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_JWT_SECRET`
+- API live: https://churchos-production-c6ae.up.railway.app
+- `/sermons` returning live Logos-synced data in production
+- `/events` returning `[]` (no events created yet — expected)
+
+---
+
+### Phase 3 — Supabase Auth & Database
+
+#### Added
+- Supabase Auth integration with JWT verification (PyJWT, HS256)
+- `public.profiles` table with RBAC roles
+- `public.churches` table (`id: "default"`, name: "Libby Church of the Nazarene")
+- `public.sermons` table (Logos-synced, VARCHAR PKs, RLS enabled)
+- `public.church_events` table
+- `GET /me` endpoint — returns authenticated user's profile
+- Row Level Security on `profiles` and `sermons`
+
+---
+
+### Phase 2 — Public Website
+
+#### Added
+- Public-facing Nuxt 4 site: homepage, sermons, about, contact
+- Static generation via Cloudflare Pages (Nitro cloudflare-pages preset)
+- Currently uses mock sermon/event data (live API wiring deferred to Phase 10)
+
+---
+
+### Phase 1 — Design System
+
+#### Added
+- Tailwind CSS v4 design tokens: forest, kootenai, gold, charcoal, stone palettes
+- Font stack: Cinzel (display), Lora (body/scripture), DM Sans (UI)
+- Shared component classes: btn-primary, btn-secondary, btn-ghost, co-card, etc.
+- Dark mode via @nuxtjs/color-mode (class strategy)
+- `packages/ui` shared component library
+
+---
+
+### Phase 0 — Repo & Tooling
+
+#### Added
+- pnpm workspaces + Turborepo monorepo scaffold
+- GitHub Actions CI: turbo pipeline + pytest pipeline
+- Cloudflare Pages deployment (production + staging)
+- Railway.app deployment (FastAPI backend)
+- Branch protection on main, staging, dev (PRs + CI required)
+- `version.json` — semantic versioning visible in footer, admin topbar, `/health`
+- `GET /health` → `{"status":"ok","version":"0.1.0","codename":"Kootenai"}`
