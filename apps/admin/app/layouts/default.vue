@@ -37,6 +37,7 @@ const CODENAME = 'Kootenai'
 const navItems = [
   { label: 'Sermons', to: '/sermons', icon: '🎙' },
   { label: 'Events',  to: '/events',  icon: '📅' },
+  { label: 'Prayer',  to: '/prayer',  icon: '🙏' },
 ]
 </script>
 
