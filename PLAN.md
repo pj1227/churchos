@@ -1,7 +1,7 @@
 # ChurchOS — Master Build Plan
 
 **Version:** 0.1.0 (pre-release — "Kootenai" targets 1.0.0)  
-**Last updated:** 2026-05-23 (Phase 2 in progress)  
+**Last updated:** 2026-05-28 (Phase 5 in progress)  
 **Target deployment:** libbynaz.org (prototype → multi-church)
 
 ---
@@ -79,10 +79,10 @@ feature/* ──► dev ──► staging ──► main (production)
 |---|------|--------|--------|
 | 0 | Repo & tooling | `feature/phase-0-repo-setup` | ✅ complete |
 | 1 | Design system | `feature/phase-1-design-system` | ✅ complete |
-| 2 | Public website | `feature/phase-2-public-site` | 🚧 in progress |
-| 3 | Auth & database | `feature/phase-3-supabase-auth` | 🔲 pending |
-| 4 | Admin dashboard | `feature/phase-4-admin-dashboard` | 🔲 pending |
-| 5 | Prayer board | `feature/phase-5-prayer-board` | 🔲 pending |
+| 2 | Public website | `feature/phase-2-public-site` | ✅ complete (mock data — wired to API in Phase 10) |
+| 3 | Auth & database | `feature/phase-3-supabase-auth` | ✅ complete |
+| 4 | Admin dashboard | `feature/phase-4-admin-dashboard` | ✅ complete |
+| 5 | Prayer board | `feature/phase-5-prayer-board` | 🚧 in progress |
 | 6 | Gloo AI integration | `feature/phase-6-gloo-ai` | 🔲 pending |
 | 7 | Giving module | `feature/phase-7-giving` | 🔲 pending |
 | 8 | Member directory | `feature/phase-8-directory` | 🔲 pending |
@@ -277,16 +277,48 @@ describe('Button', () => {
 **Goal:** Public prayer request submission with AI moderation and Redis rate limiting.
 
 ### Flow
-1. Visitor submits prayer request (public form)
-2. Redis rate limit checked (5 submissions / IP / hour)
-3. Gloo AI moderates content → approve / hold / reject
-4. Approved requests appear on public board
-5. Staff can review held/rejected requests in admin
+1. Visitor submits prayer request (no auth required)
+2. Redis rate limit checked — **3 submissions / IP / hour** (Upstash Redis)
+3. Anthropic Claude moderates content → `approved` or `rejected`
+4. Request stored with `status` field; submitter always receives 201 (dignity-preserving)
+5. Approved requests visible to **members+** (not fully public — requires auth)
+6. Staff can view pending/rejected queue at `GET /prayer-requests/pending`
+7. Staff approves or rejects via `PATCH /prayer-requests/{id}`
+
+### API endpoints
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| POST | `/prayer-requests` | none | Submit (rate-limited, AI-moderated) |
+| GET | `/prayer-requests` | member+ | Approved list |
+| GET | `/prayer-requests/pending` | staff+ | Moderation queue |
+| PATCH | `/prayer-requests/{id}` | staff+ | Approve or reject |
+
+### Key implementation files
+- `apps/api/tests/test_prayer_requests.py` — 20 tests (written first)
+- `apps/api/alembic/versions/d4e5f6a7b8c9_create_prayer_requests_table.py`
+- `apps/api/app/schemas/prayer_request.py` — PrayerRequestCreate / Read / Moderate
+- `apps/api/app/crud/prayer_requests.py` — Supabase CRUD
+- `apps/api/app/dependencies/rate_limit.py` — `_redis_incr` + `check_rate_limit`
+- `apps/api/app/dependencies/ai_moderation.py` — `moderate_prayer_request`
+- `apps/api/app/routers/prayer_requests.py`
+
+### Required env vars (new in Phase 5)
+```bash
+UPSTASH_REDIS_URL=rediss://...upstash.io:6380
+UPSTASH_REDIS_TOKEN=...
+ANTHROPIC_API_KEY=...
+```
 
 ### Done criteria
-- [ ] Rate limiting blocks excess submissions
-- [ ] AI moderation pipeline tested with mock responses
-- [ ] Approved prayers visible publicly; held ones staff-only
+- [x] 20 API tests written first (TDD) and passing
+- [x] Rate limiting dependency implemented (patchable _redis_incr)
+- [x] AI moderation dependency implemented (patchable, fail-open)
+- [x] Alembic migration created for prayer_requests table
+- [ ] Alembic migration applied in Supabase (`alembic upgrade head` or manual stamp)
+- [ ] Railway env vars set: UPSTASH_REDIS_URL, UPSTASH_REDIS_TOKEN, ANTHROPIC_API_KEY
+- [ ] Public submission form added to apps/web
+- [ ] Admin moderation queue page added to apps/admin
+- [ ] Feature branch merged → dev → staging → main
 
 ---
 
@@ -395,16 +427,16 @@ ANTHROPIC_API_KEY=...   # fallback
 ## Key env vars (never committed)
 
 ```bash
-# Supabase
+# Supabase (note: Supabase renamed keys in 2025 — anon→publishable, service→secret)
 SUPABASE_URL=
-SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_KEY=
+SUPABASE_SERVICE_KEY=      # "secret key" in Supabase dashboard
 SUPABASE_JWT_SECRET=
 NUXT_PUBLIC_SUPABASE_URL=
-NUXT_PUBLIC_SUPABASE_ANON_KEY=
+NUXT_PUBLIC_SUPABASE_ANON_KEY=   # "publishable key" in Supabase dashboard
 
-# Redis
-REDIS_URL=
+# Redis (Upstash)
+UPSTASH_REDIS_URL=
+UPSTASH_REDIS_TOKEN=
 
 # Backblaze B2
 B2_KEY_ID=
