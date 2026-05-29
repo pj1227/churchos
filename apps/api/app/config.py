@@ -45,6 +45,21 @@ class Settings(BaseSettings):
     supabase_service_key: str = ""
 
     # ------------------------------------------------------------------
+    # Redis (Upstash) — rate limiting
+    # ------------------------------------------------------------------
+    # Full Redis URL including scheme, e.g. rediss://...upstash.io:6380
+    upstash_redis_url:   str = ""
+    # Upstash REST token used as the Redis AUTH password.
+    upstash_redis_token: str = ""
+
+    # ------------------------------------------------------------------
+    # AI (Anthropic) — prayer board moderation, Phase 5
+    # ------------------------------------------------------------------
+    # Anthropic API key for Claude moderation calls.
+    # Phase 6 will add Gloo AI as the primary provider with this as fallback.
+    anthropic_api_key: str = ""
+
+    # ------------------------------------------------------------------
     # App
     # ------------------------------------------------------------------
     church_slug: str = "libby-naz"
