@@ -24,6 +24,7 @@ const year = new Date().getFullYear()
 const links = [
   { label: 'Home',    to: '/' },
   { label: 'Sermons', to: '/sermons' },
+  { label: 'Prayer',  to: '/prayer' },
   { label: 'About',   to: '/about' },
   { label: 'Contact', to: '/contact' },
   { label: 'Give',    to: '/give' },
