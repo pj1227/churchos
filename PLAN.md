@@ -377,20 +377,28 @@ ANTHROPIC_API_KEY=...   # fallback
 
 ---
 
-## Phase 9 — Multi-Church Support
+## Phase 9 — Portability & Easy Deployment
 
 **Branch:** `feature/phase-9-multi-church`  
-**Goal:** `church_id` scoping across all data; per-church design tokens.
+**Goal:** Make ChurchOS easy for any church to self-host from the GitHub repo.
+
+### Architecture note
+ChurchOS is **single-tenant** — each church gets their own isolated deployment
+(Supabase project, Railway service, Cloudflare account). There is no shared
+database. "Multi-church support" means portability, not multi-tenancy.
 
 ### Changes
-- All queries scoped by `church_id`
-- Subdomain or slug routing to church context
-- Per-church Tailwind theme overrides in `churches.config` DB column
+- `.env.example` fully documented for every required account and key
+- Setup guide: step-by-step from GitHub clone → live deployment
+- Per-church design token configuration via environment variables or `site_config` DB row
+- `churches` singleton row configurable via env var at deploy time (name, slug, timezone, etc.)
+- Optional: one-click Railway deploy button in README
 
 ### Done criteria
-- [ ] Two test churches can coexist with isolated data
-- [ ] Theme tokens applied per-church without code changes
-- [ ] RLS prevents cross-church data access
+- [ ] A new church can go from GitHub clone to live site following only the docs
+- [ ] All env vars documented with descriptions and where to find them
+- [ ] Design tokens (colors, fonts) configurable without code changes
+- [ ] Site name, logo, and contact info driven from `site_config` or env vars
 
 ---
 
