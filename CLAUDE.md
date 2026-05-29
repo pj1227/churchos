@@ -122,15 +122,37 @@ gold-500 (#c9962b) accent · charcoal-900 (#0a1012) dark · stone-50 (#faf8f5) l
 
 ---
 
+## Deployment architecture (important)
+
+ChurchOS is a **single-tenant, portable CMS**. Each church gets its own isolated
+deployment — their own Supabase project, Railway service, and Cloudflare account.
+There is no shared database and no cross-church data isolation needed in code.
+
+Phase 9 ("Multi-church support") means **portability and easy self-hosting**, not
+multi-tenancy. A church downloads the repo, sets up their own accounts, and deploys.
+
+Consequence: `church_id` on every table is a per-deployment constant (always
+`"default"`), not a tenant discriminator. It stays for self-documentation and
+sanity-checking configuration, but queries are never filtering across church IDs.
+
+---
+
 ## Supabase schema notes
 
-- `public.churches` — `id` is VARCHAR (value `"default"` for Libby Naz, not a UUID)
-- `public.sermons` — Logos-synced; `church_id` FK to churches; use PATCH not PUT
-- `public.church_events` — manually managed; includes `created_by` field
-- `public.profiles` — RBAC roles stored here
-- **RLS gaps (pre-Phase 5):** `announcements`, `church_events`, `pages`,
-  `prayer_requests`, `sermon_sync_logs`, `site_config`, `alembic_version`
-  are all UNRESTRICTED — needs RLS policies added
+### Primary key conventions
+- `churches.id` — VARCHAR, value `"default"` — intentional singleton config row
+- `sermons.id` — VARCHAR(36) — Logos-sync assigned; do not change PK type
+- `church_events.id` — being migrated to UUID (table is empty, no external IDs)
+- `prayer_requests.id` and all future tables — UUID with `DEFAULT gen_random_uuid()`
+
+### Per-table notes
+- `public.churches` — singleton row; `id = "default"` for Libby Naz
+- `public.sermons` — Logos-synced; `church_id` FK; use PATCH not PUT
+- `public.church_events` — manually managed; migrating PK to UUID
+- `public.prayer_requests` — Phase 5; UUID PK; RLS enabled; full schema in migration d4e5f6a7b8c9
+- `public.profiles` — RBAC roles stored here; linked to `auth.users` (UUID)
+- **RLS gaps:** `announcements`, `pages`, `sermon_sync_logs`, `site_config`,
+  `alembic_version` are UNRESTRICTED — add RLS policies in Phase 10
 
 ---
 
