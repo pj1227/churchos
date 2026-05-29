@@ -53,11 +53,13 @@ class Settings(BaseSettings):
     upstash_redis_token: str = ""
 
     # ------------------------------------------------------------------
-    # AI (Anthropic) — prayer board moderation, Phase 5
+    # AI — prayer board moderation
     # ------------------------------------------------------------------
-    # Anthropic API key for Claude moderation calls.
-    # Phase 6 will add Gloo AI as the primary provider with this as fallback.
-    anthropic_api_key: str = ""
+    # xAI (Grok) — primary moderator. Free tier at console.x.ai.
+    # Phase 6 adds Gloo AI as primary with Grok as fallback.
+    # Phase 9 exposes provider selection via the admin settings UI.
+    grok_api_key:      str = ""   # xAI / Grok — active moderator
+    anthropic_api_key: str = ""   # reserved for future fallback chain
 
     # ------------------------------------------------------------------
     # App
