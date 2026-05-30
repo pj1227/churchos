@@ -32,6 +32,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.config import settings
 from app.crud import prayer_requests as prayer_crud
+from app.crud import site_config as config_crud
 from app.dependencies.ai_moderation import moderate_prayer_request
 from app.dependencies.rate_limit import check_rate_limit
 from app.dependencies.rbac import require_role
@@ -40,6 +41,7 @@ from app.schemas.prayer_request import (
     PrayerRequestModerate,
     PrayerRequestRead,
 )
+from app.services.email import send_prayer_notification
 
 router = APIRouter(prefix="/prayer-requests", tags=["prayer"])
 
@@ -109,8 +111,40 @@ async def moderate_prayer_request_endpoint(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Prayer request not found",
         )
-    return prayer_crud.moderate_prayer_request(
+    result = prayer_crud.moderate_prayer_request(
         prayer_id=prayer_id,
         payload=payload,
         moderator_id=current_user["id"],
     )
+
+    # Send prayer chain email notification when approving
+    if payload.status == "approved":
+        prayer_chain_email = config_crud.get_raw_value("prayer_chain_email")
+        if prayer_chain_email:
+            send_prayer_notification(
+                to=prayer_chain_email,
+                prayer_body=existing.get("body", ""),
+                submitter_name=existing.get("name"),
+                is_anonymous=existing.get("is_anonymous", False),
+            )
+
+    return result
+
+
+@router.patch("/{prayer_id}/answered", response_model=PrayerRequestRead)
+async def mark_prayer_answered(
+    prayer_id: str,
+    current_user: dict = Depends(require_role("staff")),
+) -> dict:
+    """
+    Mark a prayer request as answered. Staff+ required.
+    Sets is_answered=True — the request remains visible in the active list
+    but is visually distinguished and can be archived.
+    """
+    existing = prayer_crud.get_prayer_request(prayer_id)
+    if existing is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Prayer request not found",
+        )
+    return prayer_crud.set_answered(prayer_id, is_answered=True)
