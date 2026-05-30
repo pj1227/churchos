@@ -82,7 +82,7 @@ feature/* ──► dev ──► staging ──► main (production)
 | 2 | Public website | `feature/phase-2-public-site` | ✅ complete (mock data — wired to API in Phase 10) |
 | 3 | Auth & database | `feature/phase-3-supabase-auth` | ✅ complete |
 | 4 | Admin dashboard | `feature/phase-4-admin-dashboard` | ✅ complete |
-| 5 | Prayer board | `feature/phase-5-prayer-board` | 🚧 in progress |
+| 5 | Prayer board | `feature/phase-5-prayer-board` | ✅ complete |
 | 6 | Gloo AI integration | `feature/phase-6-gloo-ai` | 🔲 pending |
 | 7 | Giving module | `feature/phase-7-giving` | 🔲 pending |
 | 8 | Member directory | `feature/phase-8-directory` | 🔲 pending |
