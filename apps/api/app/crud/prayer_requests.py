@@ -110,6 +110,18 @@ def get_prayer_request(prayer_id: str) -> dict | None:
     return data[0] if data else None
 
 
+def set_answered(prayer_id: str, is_answered: bool = True) -> dict:
+    """Set is_answered flag on a prayer request."""
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat()
+    update = {"is_answered": is_answered, "updated_at": now}
+    params = {"id": f"eq.{prayer_id}"}
+    resp = httpx.patch(_base_url(), json=update, headers=_headers(), params=params)
+    resp.raise_for_status()
+    data = resp.json()
+    return data[0] if isinstance(data, list) else data
+
+
 def moderate_prayer_request(
     prayer_id: str,
     payload: PrayerRequestModerate,

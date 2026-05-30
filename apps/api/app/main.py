@@ -26,6 +26,7 @@ from app.routers import me as me_router
 from app.routers import sermons as sermons_router
 from app.routers import events as events_router
 from app.routers import prayer_requests as prayer_router
+from app.routers import site_config as site_config_router
 
 # ---------------------------------------------------------------------------
 # Version — read from repo root version.json (single source of truth)
@@ -64,6 +65,7 @@ app.include_router(me_router.router)
 app.include_router(sermons_router.router)
 app.include_router(events_router.router)
 app.include_router(prayer_router.router)
+app.include_router(site_config_router.router)
 
 
 # ---------------------------------------------------------------------------

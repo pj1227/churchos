@@ -2,19 +2,15 @@
   pages/prayer/index.vue — Prayer request moderation queue (route: /prayer)
 
   What it does:
-    Lists all pending prayer requests fetched from GET /prayer-requests/pending.
-    Staff can approve or reject each request. Actioned rows are removed from
-    the queue immediately for a clean workflow.
-
-  Why it exists at this layer:
-    The moderation queue is the staff-facing side of the Phase 5 prayer board.
-    Staff need a clear, actionable view of submissions before they go public.
+    Two-tab interface for managing prayer requests:
+      Pending — newly submitted requests awaiting approval or rejection
+      Active  — approved requests; staff can mark them as answered
 
   How it connects:
-    - layouts/default.vue wraps this page (sidebar + topbar)
-    - GET /prayer-requests/pending → fetches pending submissions (staff+)
-    - PATCH /prayer-requests/{id} → approves or rejects a submission
-    - apps/web/app/pages/prayer.vue is the public submission form
+    - GET /prayer-requests/pending → pending tab
+    - GET /prayer-requests?status=approved → active tab (approved, not yet answered)
+    - PATCH /prayer-requests/{id} → approve or reject
+    - PATCH /prayer-requests/{id}/answered → mark as answered
 -->
 
 <script setup lang="ts">
@@ -26,26 +22,53 @@ interface PrayerRequest {
   body:         string
   is_anonymous: boolean
   status:       string
+  is_answered:  boolean
   ai_score:     number | null
   submitted_at: string | null
 }
 
 definePageMeta({ middleware: 'auth' })
 
-const queue    = ref<PrayerRequest[]>([])
-const loading  = ref(true)
-const actionErr = ref<string | null>(null)
+type Tab = 'pending' | 'active'
+const activeTab  = ref<Tab>('pending')
+const pending    = ref<PrayerRequest[]>([])
+const active     = ref<PrayerRequest[]>([])
+const loading    = ref(true)
+const actionErr  = ref<string | null>(null)
+
+async function loadPending() {
+  const data = await $fetch<PrayerRequest[]>('/prayer-requests/pending')
+  pending.value = data
+}
+
+async function loadActive() {
+  const data = await $fetch<PrayerRequest[]>('/prayer-requests')
+  active.value = data.filter((p: PrayerRequest) => !p.is_answered)
+}
 
 onMounted(async () => {
   try {
-    const data = await $fetch<PrayerRequest[]>('/prayer-requests/pending')
-    queue.value = data
+    await loadPending()
   } catch {
     actionErr.value = 'Failed to load prayer queue.'
   } finally {
     loading.value = false
   }
 })
+
+async function switchTab(tab: Tab) {
+  activeTab.value = tab
+  actionErr.value = null
+  loading.value = true
+  try {
+    if (tab === 'pending') await loadPending()
+    else await loadActive()
+  } catch {
+    actionErr.value = 'Failed to load requests.'
+  } finally {
+    loading.value = false
+  }
+}
 
 async function moderate(id: string, status: 'approved' | 'rejected') {
   actionErr.value = null
@@ -54,12 +77,33 @@ async function moderate(id: string, status: 'approved' | 'rejected') {
       method: 'PATCH',
       body:   { status },
     })
-    // Remove actioned row from the local queue immediately
-    queue.value = queue.value.filter(p => p.id !== id)
+    pending.value = pending.value.filter(p => p.id !== id)
   } catch {
     actionErr.value = 'Action failed. Please try again.'
   }
 }
+
+async function markAnswered(id: string) {
+  actionErr.value = null
+  try {
+    await $fetch(`/prayer-requests/${id}/answered`, {
+      method: 'PATCH',
+      body:   { is_answered: true },
+    })
+    active.value = active.value.filter(p => p.id !== id)
+  } catch {
+    actionErr.value = 'Action failed. Please try again.'
+  }
+}
+
+const currentQueue = ref<PrayerRequest[]>([])
+import { watch } from 'vue'
+watch(activeTab, () => {
+  currentQueue.value = activeTab.value === 'pending' ? pending.value : active.value
+})
+watch(pending, (v) => { if (activeTab.value === 'pending') currentQueue.value = v }, { deep: true })
+watch(active,  (v) => { if (activeTab.value === 'active')  currentQueue.value = v }, { deep: true })
+onMounted(() => { currentQueue.value = pending.value })
 </script>
 
 <template>
@@ -72,12 +116,36 @@ async function moderate(id: string, status: 'approved' | 'rejected') {
       >
         Prayer Queue
       </h1>
-      <span
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-1 mb-5 border-b border-stone-200 dark:border-stone-700">
+      <button
+        data-testid="tab-pending"
         style="font-family: var(--font-ui)"
-        class="text-sm text-charcoal-900/50 dark:text-stone-400"
+        class="px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px"
+        :class="activeTab === 'pending'
+          ? 'border-forest-500 text-forest-600 dark:text-forest-300'
+          : 'border-transparent text-charcoal-900/50 dark:text-stone-400 hover:text-charcoal-900 dark:hover:text-stone-200'"
+        @click="switchTab('pending')"
       >
-        Pending: {{ queue.length }}
-      </span>
+        Pending
+        <span
+          v-if="pending.length"
+          class="ml-1.5 badge-gold text-xs px-1.5 py-0.5 rounded-full"
+        >{{ pending.length }}</span>
+      </button>
+      <button
+        data-testid="tab-active"
+        style="font-family: var(--font-ui)"
+        class="px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px"
+        :class="activeTab === 'active'
+          ? 'border-forest-500 text-forest-600 dark:text-forest-300'
+          : 'border-transparent text-charcoal-900/50 dark:text-stone-400 hover:text-charcoal-900 dark:hover:text-stone-200'"
+        @click="switchTab('active')"
+      >
+        Active
+      </button>
     </div>
 
     <!-- Error banner -->
@@ -100,30 +168,27 @@ async function moderate(id: string, status: 'approved' | 'rejected') {
 
     <!-- Empty state -->
     <div
-      v-else-if="queue.length === 0"
+      v-else-if="currentQueue.length === 0"
       class="co-card text-center py-12"
     >
       <p
         style="font-family: var(--font-display)"
         class="text-xl font-semibold text-forest-600 dark:text-forest-300 mb-2"
       >
-        All caught up!
+        {{ activeTab === 'pending' ? 'All caught up!' : 'No active requests' }}
       </p>
       <p
         style="font-family: var(--font-ui)"
         class="text-charcoal-900/50 dark:text-stone-400"
       >
-        No pending prayer requests.
+        {{ activeTab === 'pending' ? 'No pending prayer requests.' : 'All prayers have been answered or are pending.' }}
       </p>
     </div>
 
     <!-- Queue list -->
-    <div
-      v-else
-      class="flex flex-col gap-4"
-    >
+    <div v-else class="flex flex-col gap-4">
       <div
-        v-for="prayer in queue"
+        v-for="prayer in currentQueue"
         :key="prayer.id"
         data-testid="prayer-row"
         class="co-card flex flex-col gap-3"
@@ -161,8 +226,8 @@ async function moderate(id: string, status: 'approved' | 'rejected') {
           {{ prayer.body }}
         </p>
 
-        <!-- Actions -->
-        <div class="flex items-center gap-3 pt-1">
+        <!-- Actions — pending tab -->
+        <div v-if="activeTab === 'pending'" class="flex items-center gap-3 pt-1">
           <button
             data-testid="btn-approve"
             class="btn-primary !py-1.5 !px-4 text-sm"
@@ -178,6 +243,18 @@ async function moderate(id: string, status: 'approved' | 'rejected') {
             @click="moderate(prayer.id, 'rejected')"
           >
             Reject
+          </button>
+        </div>
+
+        <!-- Actions — active tab -->
+        <div v-else class="flex items-center gap-3 pt-1">
+          <button
+            data-testid="btn-answered"
+            class="btn-primary !py-1.5 !px-4 text-sm"
+            style="font-family: var(--font-ui)"
+            @click="markAnswered(prayer.id)"
+          >
+            Mark Answered
           </button>
         </div>
       </div>
