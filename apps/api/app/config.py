@@ -62,6 +62,18 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""   # reserved for future fallback chain
 
     # ------------------------------------------------------------------
+    # Email (SMTP) — Phase 5b built-in connector
+    # ------------------------------------------------------------------
+    # Phase 6 will route these through the connector framework.
+    # MS365: smtp_host=smtp.office365.com, smtp_port=587
+    # Gmail:  smtp_host=smtp.gmail.com,    smtp_port=587
+    smtp_host:      str = ""
+    smtp_port:      int = 587
+    smtp_user:      str = ""   # sender address / login
+    smtp_password:  str = ""   # sensitive — never log
+    smtp_from_name: str = "ChurchOS"
+
+    # ------------------------------------------------------------------
     # App
     # ------------------------------------------------------------------
     church_slug: str = "libby-naz"

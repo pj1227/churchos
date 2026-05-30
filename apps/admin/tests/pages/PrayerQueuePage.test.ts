@@ -188,3 +188,78 @@ describe('PrayerQueuePage', () => {
     expect(wrapper.text()).toMatch(/no pending|queue is empty|all caught up/i)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Active tab — approved requests, mark as answered
+// ---------------------------------------------------------------------------
+const MOCK_APPROVED = [
+  {
+    ...MOCK_PENDING[0],
+    status:      'approved',
+    is_answered: false,
+  },
+]
+
+describe('PrayerQueuePage — Active tab', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    // First call: pending (empty), second call: approved list
+    vi.stubGlobal('$fetch', vi.fn()
+      .mockResolvedValueOnce([])          // pending tab initial load
+      .mockResolvedValueOnce(MOCK_APPROVED), // active tab load
+    )
+  })
+
+  it('has an Active tab button', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([]))
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="tab-active"]').exists()).toBe(true)
+  })
+
+  it('has a Pending tab button', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue([]))
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="tab-pending"]').exists()).toBe(true)
+  })
+
+  it('active rows have a Mark Answered button', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce([])           // onMounted → loadPending
+      .mockResolvedValueOnce(MOCK_APPROVED) // switchTab active → loadActive
+    vi.stubGlobal('$fetch', fetchMock)
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper.find('[data-testid="tab-active"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="btn-answered"]').exists()).toBe(true)
+  })
+
+  it('calls PATCH with is_answered=true when Mark Answered clicked', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce([])           // onMounted → loadPending (empty)
+      .mockResolvedValueOnce(MOCK_APPROVED) // switchTab active → loadActive
+      .mockResolvedValueOnce({ ...MOCK_APPROVED[0], is_answered: true }) // markAnswered PATCH
+    vi.stubGlobal('$fetch', fetchMock)
+
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper.find('[data-testid="tab-active"]').trigger('click')
+    await flushPromises()
+
+    await wrapper.find('[data-testid="btn-answered"]').trigger('click')
+    await flushPromises()
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('prayer-001'),
+      expect.objectContaining({
+        method: 'PATCH',
+        body:   expect.objectContaining({ is_answered: true }),
+      }),
+    )
+  })
+})
