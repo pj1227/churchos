@@ -7,23 +7,29 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
 
 ## [Unreleased]
 
-### Phase 5 — Prayer Board (in progress)
+### In progress
+- Phase 6: Gloo AI integration
+
+---
+
+## [0.2.0] — 2026-05-29 "Kootenai" pre-release
+
+### Phase 5 — Prayer Board
 
 #### Added
-- `apps/api/tests/test_prayer_requests.py` — 20 TDD tests (written before implementation)
-- `apps/api/alembic/versions/d4e5f6a7b8c9_create_prayer_requests_table.py` — `public.prayer_requests` with RLS enabled
-- `apps/api/app/schemas/prayer_request.py` — `PrayerRequestCreate`, `PrayerRequestRead`, `PrayerRequestModerate`
-- `apps/api/app/crud/prayer_requests.py` — Supabase CRUD (create, list by status, get, moderate)
-- `apps/api/app/dependencies/rate_limit.py` — 3 submissions/IP/hour via Upstash Redis; fail-open on unavailability
-- `apps/api/app/dependencies/ai_moderation.py` — Anthropic Claude content moderation; fail-open on API unavailability
-- `apps/api/app/routers/prayer_requests.py` — POST (public), GET (member+), GET /pending (staff+), PATCH (staff+)
-- `apps/api/app/config.py` — `upstash_redis_url`, `upstash_redis_token`, `anthropic_api_key` settings
+- `public.prayer_requests` table — UUID PK, canonical schema (body, name, email, ai_score, ai_reason, moderated_at/by, is_answered, prayer_count, expires_at); RLS enabled
+- `public.church_events` — migrated PK from VARCHAR to UUID
+- API: `POST /prayer-requests` (public, rate-limited 3/hr/IP, Grok AI moderated)
+- API: `GET /prayer-requests` (member+), `GET /prayer-requests/pending` (staff+), `PATCH /prayer-requests/{id}` (staff+)
+- Rate limiting via Upstash Redis (`UPSTASH_REDIS_URL`, `UPSTASH_REDIS_TOKEN`); fail-open
+- AI moderation via xAI Grok (`GROK_API_KEY`); fail-open; Phase 6 will add Gloo as primary
+- `apps/web/app/pages/prayer.vue` — public prayer submission form; Prayer added to nav and footer
+- `apps/admin/app/pages/prayer/index.vue` — staff moderation queue; Prayer added to admin sidebar
+- 52 new tests (20 API + 10 web + 12 admin + layout updates); all passing
 
-#### Pending in Phase 5
-- Alembic migration applied in Supabase production
-- Railway env vars: `UPSTASH_REDIS_URL`, `UPSTASH_REDIS_TOKEN`, `ANTHROPIC_API_KEY`
-- Public submission form (`apps/web`)
-- Admin moderation queue page (`apps/admin`)
+#### Architecture
+- Documented ChurchOS as single-tenant portable CMS (Phase 9 = portability, not multi-tenancy)
+- UUID PK convention established for all new tables going forward
 
 ---
 
