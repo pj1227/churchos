@@ -79,15 +79,18 @@ feature/* ──► dev ──► staging ──► main (production)
 |---|------|--------|--------|
 | 0 | Repo & tooling | `feature/phase-0-repo-setup` | ✅ complete |
 | 1 | Design system | `feature/phase-1-design-system` | ✅ complete |
-| 2 | Public website | `feature/phase-2-public-site` | ✅ complete (mock data — wired to API in Phase 10) |
+| 2 | Public website | `feature/phase-2-public-site` | ✅ complete (mock data — wired to API in Phase 12) |
 | 3 | Auth & database | `feature/phase-3-supabase-auth` | ✅ complete |
 | 4 | Admin dashboard | `feature/phase-4-admin-dashboard` | ✅ complete |
 | 5 | Prayer board | `feature/phase-5-prayer-board` | ✅ complete |
-| 6 | Gloo AI integration | `feature/phase-6-gloo-ai` | 🔲 pending |
-| 7 | Giving module | `feature/phase-7-giving` | 🔲 pending |
-| 8 | Member directory | `feature/phase-8-directory` | 🔲 pending |
-| 9 | Multi-church support | `feature/phase-9-multi-church` | 🔲 pending |
-| 10 | Polish & hardening | `feature/phase-10-hardening` | 🔲 pending |
+| 5b | Prayer board completion | `feature/phase-5b-prayer-completion` | 🔜 next |
+| 6 | Connector framework | `feature/phase-6-connectors` | 🔲 pending |
+| 7 | Gloo AI integration | `feature/phase-7-gloo-ai` | 🔲 pending |
+| 8 | Giving module | `feature/phase-8-giving` | 🔲 pending |
+| 9 | Member directory | `feature/phase-9-directory` | 🔲 pending |
+| 10 | Auth providers | `feature/phase-10-auth-providers` | 🔲 pending |
+| 11 | Advanced connectors | `feature/phase-11-advanced-connectors` | 🔲 pending |
+| 12 | Polish & hardening | `feature/phase-12-hardening` | 🔲 pending |
 
 ---
 
@@ -322,30 +325,98 @@ ANTHROPIC_API_KEY=...
 
 ---
 
-## Phase 6 — Gloo AI Integration
+## Phase 5b — Prayer Board Completion
 
-**Branch:** `feature/phase-6-gloo-ai`  
-**Goal:** Gloo AI as primary faith-context provider with Anthropic Claude fallback.
+**Branch:** `feature/phase-5b-prayer-completion`  
+**Goal:** Complete the prayer board experience — public board, email notifications, updates, and answered tracking.
 
-### Config
-```bash
-GLOO_CLIENT_ID=...
-GLOO_CLIENT_SECRET=...
-GLOO_TRADITION=evangelical
-ANTHROPIC_API_KEY=...   # fallback
-```
+### Features
+- `site_config` admin settings page — stores `prayer_chain_email` and future connector settings; encrypted at rest
+- Email notification on submission → `prayer_chain_email` via configured email connector (SMTP by default)
+- Public approved prayer board on `apps/web` — visible without login (approved only)
+- Staff can post updates on a prayer request (new `prayer_updates` table)
+- Staff can mark a request as answered (`is_answered = true`) from the admin queue
+- Historical archive view (answered/closed requests) in admin
+- Member can mark a prayer as prayed for (`prayer_count` increment)
+
+### New tables
+- `public.prayer_updates` — UUID PK, prayer_request_id FK, body TEXT, created_by UUID, created_at
 
 ### Done criteria
-- [ ] Gloo API called for primary moderation
-- [ ] Fallback to Anthropic on Gloo error
-- [ ] Both providers tested with fixture responses
+- [ ] `prayer_chain_email` configurable in admin settings, stored in `site_config`
+- [ ] Email sent on approved submission
+- [ ] Public prayer board page on apps/web
+- [ ] Staff can add updates to a request
+- [ ] Staff can mark request as answered
+- [ ] Answered requests visible in historical archive
 
 ---
 
-## Phase 7 — Giving Module
+## Phase 6 — Connector Framework
 
-**Branch:** `feature/phase-7-giving`  
-**Goal:** Stripe-powered giving with zero card data on our servers.
+**Branch:** `feature/phase-6-connectors`  
+**Goal:** A plugin-style connector system where each integration category has a built-in default and optional third-party providers. Churches with no external accounts get a fully functional CMS out of the box.
+
+### Connector categories
+
+| Category | Built-in (default) | Third-party options |
+|---|---|---|
+| Email | SMTP relay (any provider) | MS365 Graph, Google Gmail |
+| Calendar | ChurchOS `church_events` table | Outlook, Google Calendar, iCal |
+| Documents | ChurchOS `pages` table | Google Docs, MS365, OnlyOffice, Nextcloud |
+| Storage | Backblaze B2 | Google Drive, OneDrive, S3 |
+| Auth | Email + magic link (Supabase) | Microsoft Entra, Google OAuth, Apple |
+
+### Architecture
+- Each connector category defines a standard Python interface (e.g., `send_email(to, subject, body)`)
+- The active connector for each category is set in `site_config` and read at runtime
+- Swapping connectors requires only a config change — no code changes
+- Admin settings UI has a "Connectors" page with setup instructions per provider
+
+### Admin settings UI
+- Connector selection per category (dropdown)
+- Provider-specific config fields (API keys, tenant IDs, etc.) — stored encrypted in `site_config`
+- Test button per connector (sends test email, creates test calendar event, etc.)
+
+### Phase 6 deliverables
+- Connector interface definitions (Python ABCs for API, TypeScript interfaces for frontend)
+- Built-in connectors: SMTP email, ChurchOS calendar, ChurchOS pages, Backblaze B2
+- MS365 connectors: Graph API email, Outlook calendar sync (two-way)
+- Admin settings UI: Connectors page
+- `site_config` table with encrypted connector settings
+
+### Done criteria
+- [ ] Connector interfaces defined and documented
+- [ ] SMTP email connector working (replaces hardcoded SMTP in Phase 5b)
+- [ ] MS365 email connector via Graph API
+- [ ] Outlook two-way calendar sync (events ↔ church_events)
+- [ ] Admin settings page — Connectors section
+- [ ] All connectors tested with mock providers
+
+---
+
+## Phase 7 — Gloo AI Integration
+
+**Branch:** `feature/phase-7-gloo-ai`  
+**Goal:** Gloo AI as primary faith-context provider with Grok as fallback. Plugs into the connector framework from Phase 6.
+
+### Config (via admin settings UI)
+- Gloo client ID, client secret, tradition setting
+- Grok API key (fallback)
+- Provider chain: Gloo → Grok → fail-open
+
+### Done criteria
+- [ ] Gloo API called for primary moderation via AI connector interface
+- [ ] Fallback to Grok on Gloo error
+- [ ] Both providers tested with fixture responses
+- [ ] Configurable via admin settings UI (no env var required)
+
+---
+
+## Phase 8 — Giving Module
+
+**Branch:** `feature/phase-8-giving`  
+**Goal:** Stripe-powered giving with zero card data on our servers. (Renumbered from Phase 7.)
 
 ### Rules (non-negotiable)
 - Stripe.js handles all card input in the browser
@@ -359,10 +430,10 @@ ANTHROPIC_API_KEY=...   # fallback
 
 ---
 
-## Phase 8 — Member Directory
+## Phase 9 — Member Directory
 
-**Branch:** `feature/phase-8-directory`  
-**Goal:** Opt-in member directory, PII encrypted at rest.
+**Branch:** `feature/phase-9-directory`  
+**Goal:** Opt-in member directory, PII encrypted at rest. (Renumbered from Phase 8.)
 
 ### Rules
 - Member role minimum — never public
@@ -377,42 +448,76 @@ ANTHROPIC_API_KEY=...   # fallback
 
 ---
 
-## Phase 9 — Portability & Easy Deployment
+## Phase 10 — Auth Providers
 
-**Branch:** `feature/phase-9-multi-church`  
-**Goal:** Make ChurchOS easy for any church to self-host from the GitHub repo.
+**Branch:** `feature/phase-10-auth-providers`  
+**Goal:** Add Microsoft and Google OAuth as configurable login providers via Supabase Auth. Map external groups to ChurchOS roles.
 
-### Architecture note
-ChurchOS is **single-tenant** — each church gets their own isolated deployment
-(Supabase project, Railway service, Cloudflare account). There is no shared
-database. "Multi-church support" means portability, not multi-tenancy.
+### Architecture
+Supabase Auth is the consistent auth layer regardless of provider. The OAuth flow is always:
+> Login button → Supabase validates → JWT issued → ChurchOS roles applied
 
-### Changes
-- `.env.example` fully documented for every required account and key
-- Setup guide: step-by-step from GitHub clone → live deployment
-- Per-church design token configuration via environment variables or `site_config` DB row
-- `churches` singleton row configurable via env var at deploy time (name, slug, timezone, etc.)
-- Optional: one-click Railway deploy button in README
+Per-deployment, admins configure which providers are enabled via the admin settings UI.
+
+### Features
+- Microsoft Entra ID (Azure AD) — OAuth2/OIDC via Supabase
+- Google OAuth — via Supabase
+- Apple Sign In — via Supabase
+- Group → role mapping: MS groups or Google Workspace groups → ChurchOS roles (staff, admin, etc.)
+- Admin settings: enable/disable providers, configure client ID/secret
 
 ### Done criteria
-- [ ] A new church can go from GitHub clone to live site following only the docs
-- [ ] All env vars documented with descriptions and where to find them
-- [ ] Design tokens (colors, fonts) configurable without code changes
-- [ ] Site name, logo, and contact info driven from `site_config` or env vars
+- [ ] Microsoft login working via Supabase OAuth
+- [ ] Google login working via Supabase OAuth
+- [ ] Group membership read from provider → role assigned in profiles table
+- [ ] Admin settings UI — Auth Providers section
+- [ ] Existing email/magic link auth still works alongside OAuth providers
 
 ---
 
-## Phase 10 — Polish & Hardening
+## Phase 11 — Advanced Connectors
 
-**Branch:** `feature/phase-10-hardening`  
-**Goal:** Production-ready. Lighthouse ≥ 95, Sentry wired, security audit passed.
+**Branch:** `feature/phase-11-advanced-connectors`  
+**Goal:** Expand the connector framework (Phase 6) with Google Workspace, OnlyOffice, Nextcloud, and Zoho integrations.
 
-### Checklist
-- [ ] Lighthouse ≥ 95 (performance, accessibility, best practices, SEO)
-- [ ] Sentry error tracking in all apps
-- [ ] Security audit: OWASP Top 10 pass
-- [ ] All `.env.example` files complete and documented
-- [ ] VitePress docs cover setup, deployment, and contributing
+### Connectors
+- **Google Workspace** — Gmail (email), Google Calendar (two-way sync), Google Drive (storage), Google Docs (documents)
+- **OnlyOffice** — document editing and real-time collaboration
+- **Nextcloud** — self-hosted open-source option (calendar, storage, documents)
+- **Zoho** — popular with nonprofits; email, calendar, CRM
+- **iCal** — read-only calendar import from any iCal-compatible source
+
+### Done criteria
+- [ ] Google Workspace email + calendar connector
+- [ ] OnlyOffice document connector
+- [ ] Nextcloud connector
+- [ ] All connectors selectable from admin settings UI
+- [ ] Each connector has setup documentation with step-by-step instructions
+
+---
+
+## Phase 12 — Portability & Polish
+
+**Branch:** `feature/phase-12-hardening`  
+**Goal:** Production-ready and easy for any church to self-host. Lighthouse ≥ 95, security audit, full documentation.
+
+### Portability
+- `.env.example` fully documented for every required account and key
+- Setup guide: step-by-step from GitHub clone → live deployment
+- Design tokens (colors, fonts, logo) configurable via `site_config` without code changes
+- One-click Railway deploy button in README
+
+### Hardening
+- Lighthouse ≥ 95 (performance, accessibility, best practices, SEO)
+- Sentry error tracking in all apps
+- Security audit: OWASP Top 10 pass
+- RLS policies on all remaining unprotected tables
+- VitePress documentation: setup, deployment, connector configuration, contributing
+
+### Done criteria
+- [ ] A new church can go from GitHub clone to live site following only the docs
+- [ ] Lighthouse ≥ 95 on all public pages
+- [ ] Security audit passed
 - [ ] Version `1.0.0` ("Kootenai") tagged and released
 
 ---
