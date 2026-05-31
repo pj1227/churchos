@@ -318,3 +318,35 @@ class TestModeratePrayerRequest:
                 headers=auth_header("staff", USER_ID_STAFF),
             )
         assert r.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# GET /prayer-requests/public — no auth, approved + not-answered only
+# ---------------------------------------------------------------------------
+class TestPublicPrayerBoard:
+    def test_unauthenticated_returns_200(self, client: TestClient):
+        """Public endpoint — no token required."""
+        with patch("app.crud.prayer_requests.list_prayer_requests",
+                   return_value=[MOCK_PRAYER_APPROVED]):
+            r = client.get("/prayer-requests/public")
+        assert r.status_code == 200
+
+    def test_returns_approved_prayers(self, client: TestClient):
+        """Response contains approved requests."""
+        with patch("app.crud.prayer_requests.list_prayer_requests",
+                   return_value=[MOCK_PRAYER_APPROVED]):
+            r = client.get("/prayer-requests/public")
+        assert r.json()[0]["status"] == "approved"
+
+    def test_does_not_expose_email(self, client: TestClient):
+        """Email field must be stripped from public responses."""
+        prayer_with_email = {**MOCK_PRAYER_APPROVED, "email": "secret@test.com"}
+        with patch("app.crud.prayer_requests.list_prayer_requests",
+                   return_value=[prayer_with_email]):
+            r = client.get("/prayer-requests/public")
+        assert "email" not in r.json()[0]
+
+    def test_returns_empty_list_when_none(self, client: TestClient):
+        with patch("app.crud.prayer_requests.list_prayer_requests", return_value=[]):
+            r = client.get("/prayer-requests/public")
+        assert r.json() == []

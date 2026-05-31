@@ -2,7 +2,7 @@
   app/pages/prayer/board.vue — Public prayer board (route: /prayer/board)
 
   What it does:
-    Displays the community's approved prayer requests so visitors can see
+    Displays the community's approved prayer requests so any visitor can see
     what the congregation is praying for and join in prayer. Each card shows
     the prayer body, the submitter's name (or "Anonymous"), and the date.
 
@@ -13,9 +13,9 @@
     loop between submission (/prayer) and visibility (this page).
 
   How it connects:
-    - GET {apiBase}/prayer-requests → approved list (requires member auth in
-      the API, but this page fetches on the client side — unauthenticated
-      visitors will get a 401 and see the empty/prompt state)
+    - GET {apiBase}/prayer-requests/public → approved list, no auth required.
+      Returns PrayerRequestPublic — email and moderation fields are stripped
+      server-side so no PII is exposed.
     - apps/web/app/pages/prayer.vue — submission form
     - apps/admin/app/pages/prayer/index.vue — staff moderation queue
 -->
@@ -46,10 +46,9 @@ const loading  = ref(true)
 
 onMounted(async () => {
   try {
-    const data = await $fetch<Prayer[]>(`${config.public.apiBase}/prayer-requests`)
+    const data = await $fetch<Prayer[]>(`${config.public.apiBase}/prayer-requests/public`)
     prayers.value = data
   } catch {
-    // Unauthenticated visitors get 401 — show empty/prompt state gracefully
     prayers.value = []
   } finally {
     loading.value = false
