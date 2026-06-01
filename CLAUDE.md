@@ -158,36 +158,69 @@ sanity-checking configuration, but queries are never filtering across church IDs
 
 ## Phase status
 
-| Phase | Name                        | Status         |
-|-------|-----------------------------|----------------|
-| 0     | Repo & tooling              | ✅ Complete     |
-| 1     | Design system               | ✅ Complete     |
-| 2     | Public website              | ✅ Complete (mock data — not yet wired to API) |
-| 3     | Supabase auth & database    | ✅ Complete     |
-| 4     | Admin dashboard             | ✅ Complete     |
-| 5     | Prayer board                | 🔜 In progress  |
-| 6     | Gloo AI integration         | ⬜ Not started  |
-| 7     | Giving module (Stripe)      | ⬜ Not started  |
-| 8     | Member directory            | ⬜ Not started  |
-| 9     | Multi-church support        | ⬜ Not started  |
-| 10    | Polish & hardening          | ⬜ Not started  |
+| Phase | Name                          | Status         |
+|-------|-------------------------------|----------------|
+| 0     | Repo & tooling                | ✅ Complete     |
+| 1     | Design system                 | ✅ Complete     |
+| 2     | Public website                | ✅ Complete (mock data — wired to API in Phase 12) |
+| 3     | Supabase auth & database      | ✅ Complete     |
+| 4     | Admin dashboard               | ✅ Complete     |
+| 5     | Prayer board                  | ✅ Complete     |
+| 5b    | Prayer board completion       | ✅ Complete     |
+| 6     | Connector framework           | ✅ Complete     |
+| 7     | Gloo AI integration           | ⬜ Not started  |
+| 8     | Giving module (Stripe)        | ⬜ Not started  |
+| 9     | Member directory              | ⬜ Not started  |
+| 10    | Auth providers (MS365/Google) | ⬜ Not started  |
+| 11    | Advanced connectors           | ⬜ Not started  |
+| 12    | Polish & hardening            | ⬜ Not started  |
+
+---
+
+## Connector framework (Phase 6)
+
+Connector categories use Python ABCs so providers are swappable via `site_config`
+with no code changes. The registry reads `email_provider` at call time.
+
+```
+apps/api/app/connectors/
+  base/email.py              — EmailConnector ABC
+  providers/email/smtp.py    — SmtpEmailConnector (default, env-var driven)
+  providers/email/ms365.py   — Ms365EmailConnector (Graph API, OAuth2)
+  registry.py                — get_email_connector() factory
+```
+
+**Active provider** is set in `site_config` table:
+
+| Key                   | Values            | Default |
+|-----------------------|-------------------|---------|
+| `email_provider`      | `smtp` / `ms365`  | `smtp`  |
+| `ms365_tenant_id`     | Azure tenant UUID | —       |
+| `ms365_client_id`     | Azure app UUID    | —       |
+| `ms365_client_secret` | Secret (masked)   | —       |
+| `ms365_sender`        | Licensed mailbox  | —       |
+
+Configurable in admin Settings → Email Connector section.
+Fallback policy: unknown or misconfigured provider always falls back to SMTP.
 
 ---
 
 ## Admin test suite (apps/admin)
 
-52 tests across 8 files — run with `cd apps/admin && pnpm test`
+83 tests across 10 files — run with `cd apps/admin && pnpm test`
 
-| File                          | Tests | What it covers                  |
-|-------------------------------|-------|---------------------------------|
-| tests/placeholder.test.ts     | 1     | Vitest smoke test               |
-| tests/stores/auth.test.ts     | 8     | Pinia auth store                |
-| tests/layouts/AdminLayout.test.ts | 8 | Sidebar, topbar, slot, sign-out |
-| tests/pages/DashboardPage.test.ts | 3 | Welcome page, quick-nav cards   |
-| tests/pages/SermonsIndexPage.test.ts | 7 | Sermon list, badges, edit links |
-| tests/pages/SermonEditPage.test.ts  | 10 | Edit form, PATCH, feedback      |
-| tests/pages/EventsIndexPage.test.ts | 7 | Event list, badges, edit links  |
-| tests/pages/EventEditPage.test.ts   | 8 | Edit form, PATCH, feedback      |
+| File                          | Tests | What it covers                        |
+|-------------------------------|-------|---------------------------------------|
+| tests/placeholder.test.ts     | 1     | Vitest smoke test                     |
+| tests/stores/auth.test.ts     | 8     | Pinia auth store                      |
+| tests/layouts/AdminLayout.test.ts | 8 | Sidebar, topbar, slot, sign-out       |
+| tests/pages/DashboardPage.test.ts | 3 | Welcome page, quick-nav cards         |
+| tests/pages/SermonsIndexPage.test.ts | 7 | Sermon list, badges, edit links    |
+| tests/pages/SermonEditPage.test.ts  | 10 | Edit form, PATCH, feedback          |
+| tests/pages/EventsIndexPage.test.ts | 7 | Event list, badges, edit links     |
+| tests/pages/EventEditPage.test.ts   | 8 | Edit form, PATCH, feedback          |
+| tests/pages/PrayerQueuePage.test.ts | 16 | Moderation queue, approve/reject    |
+| tests/pages/SettingsPage.test.ts    | 15 | Prayer chain email, connector UI    |
 
 **Important vitest gotcha:** `useRoute` is stubbed as a global in `tests/setup.ts`.
 Components must NOT import from `#app` — use Nuxt auto-imports (no import statement).
@@ -202,6 +235,9 @@ Run with `cd apps/api && python -m pytest --tb=short`
 - `tests/test_auth.py` — JWT verification, RBAC, profile lookup
 - `tests/test_sermons.py` — Sermon CRUD endpoints (37 tests)
 - `tests/test_events.py` — Event CRUD endpoints
+- `tests/test_prayer_requests.py` — Prayer board endpoints (24 tests)
+- `tests/test_site_config.py` — Site config CRUD endpoints
+- `tests/test_connectors.py` — Connector ABCs, SMTP, MS365, registry (14 tests)
 
 **Important:** Uses `PyJWT` (not `python-jose`). Import as `import jwt` and
 catch `jwt.exceptions.InvalidTokenError` (not `JWTError`).

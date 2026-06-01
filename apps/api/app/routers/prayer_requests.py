@@ -35,6 +35,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.config import settings
 from app.crud import prayer_requests as prayer_crud
+from app.connectors.registry import get_email_connector
 from app.crud import site_config as config_crud
 from app.dependencies.ai_moderation import moderate_prayer_request
 from app.dependencies.rate_limit import check_rate_limit
@@ -45,7 +46,6 @@ from app.schemas.prayer_request import (
     PrayerRequestPublic,
     PrayerRequestRead,
 )
-from app.services.email import send_prayer_notification
 
 router = APIRouter(prefix="/prayer-requests", tags=["prayer"])
 
@@ -136,7 +136,8 @@ async def moderate_prayer_request_endpoint(
     if payload.status == "approved":
         prayer_chain_email = config_crud.get_raw_value("prayer_chain_email")
         if prayer_chain_email:
-            send_prayer_notification(
+            connector = get_email_connector()
+            connector.send_prayer_notification(
                 to=prayer_chain_email,
                 prayer_body=existing.get("body", ""),
                 submitter_name=existing.get("name"),
