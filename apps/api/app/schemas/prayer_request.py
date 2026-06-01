@@ -64,6 +64,25 @@ class PrayerRequestRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PrayerRequestPublic(BaseModel):
+    """
+    Safe public shape for GET /prayer-requests/public.
+    email is intentionally omitted — never exposed to unauthenticated visitors.
+    ai_score and ai_reason are also omitted (internal moderation data).
+    moderated_by is omitted (staff UUID).
+    """
+    id:           str
+    name:         str | None
+    body:         str
+    is_anonymous: bool
+    status:       str
+    prayer_count: int
+    submitted_at: str | None
+    is_answered:  bool
+
+    model_config = {"from_attributes": True}
+
+
 class PrayerRequestModerate(BaseModel):
     """
     Sent by staff via PATCH /prayer-requests/{id} to approve or reject.

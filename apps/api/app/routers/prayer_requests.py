@@ -3,14 +3,17 @@ routers/prayer_requests.py — Prayer board API endpoints.
 
 Endpoint summary:
   POST   /prayer-requests            no auth   — submit a prayer request (rate-limited, AI-moderated)
-  GET    /prayer-requests            member+   — list approved prayer requests
+  GET    /prayer-requests/public     no auth   — public board (approved only, email stripped)
+  GET    /prayer-requests            member+   — full approved list (includes email for member context)
   GET    /prayer-requests/pending    staff+    — moderation queue (pending requests)
   PATCH  /prayer-requests/{id}       staff+    — approve or reject a request
+  PATCH  /prayer-requests/{id}/answered staff+ — mark a request as answered
 
 Security:
   - POST is unauthenticated but enforced by check_rate_limit (3/hr per IP).
   - AI moderation runs on every submission before storage.
-  - GET (approved list) requires member role — prayer requests are not public.
+  - GET /public is unauthenticated; email and moderation fields are stripped via PrayerRequestPublic schema.
+  - GET (approved list) requires member role.
   - GET /pending and PATCH require staff role minimum.
 
 Design note — why 201 regardless of AI decision:
@@ -39,6 +42,7 @@ from app.dependencies.rbac import require_role
 from app.schemas.prayer_request import (
     PrayerRequestCreate,
     PrayerRequestModerate,
+    PrayerRequestPublic,
     PrayerRequestRead,
 )
 from app.services.email import send_prayer_notification
@@ -69,6 +73,17 @@ async def submit_prayer_request(
         ai_score=None,       # score not used in Phase 5; Gloo may return this in Phase 6
         ai_reason=ai_reason,
     )
+
+
+@router.get("/public", response_model=list[PrayerRequestPublic])
+async def list_public_prayer_requests() -> list[dict]:
+    """
+    Public board — approved, unanswered prayer requests. No auth required.
+
+    Returns PrayerRequestPublic which intentionally omits email, ai_score,
+    ai_reason, and moderated_by — no PII exposed to unauthenticated visitors.
+    """
+    return prayer_crud.list_prayer_requests(status="approved")
 
 
 @router.get("/pending", response_model=list[PrayerRequestRead])
