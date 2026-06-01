@@ -1,5 +1,5 @@
 <!--
-  app/pages/prayer.vue — Public prayer request submission form (route: /prayer)
+  app/pages/prayer/index.vue — Public prayer request submission form (route: /prayer)
 
   What it does:
     Lets any visitor submit a prayer request to the church community.
@@ -16,9 +16,16 @@
     Phase 5 public-facing component. The prayer board is the community's
     primary spiritual engagement feature beyond sermons and events.
 
+  Why index.vue instead of prayer.vue:
+    Nuxt 4 treats a file named prayer.vue as a parent layout for all routes
+    under /prayer/*, which caused /prayer/board to render the form instead
+    of the board. Moving to prayer/index.vue makes /prayer the index route
+    of the directory without interfering with sibling routes.
+
   How it connects:
     - POST {runtimeConfig.public.apiBase}/prayer-requests
     - apps/api/app/routers/prayer_requests.py handles the request
+    - apps/web/app/pages/prayer/board.vue — the public prayer board
     - apps/admin/app/pages/prayer/index.vue shows the moderation queue
 -->
 

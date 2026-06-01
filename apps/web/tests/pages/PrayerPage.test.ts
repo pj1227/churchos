@@ -11,12 +11,14 @@
  *   Tests lock in the required fields and UX states before implementation.
  *
  * How it connects:
- *   Component under test: app/pages/prayer.vue
+ *   Component under test: app/pages/prayer/index.vue
+ *   (Renamed from prayer.vue — Nuxt treats a file named prayer.vue as a parent
+ *   layout for /prayer/* routes, which broke /prayer/board rendering.)
  *   API call: POST {apiBase}/prayer-requests (stubbed via vi.stubGlobal('$fetch'))
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
-import PrayerPage from '../../app/pages/prayer.vue'
+import PrayerPage from '../../app/pages/prayer/index.vue'
 
 const stubs = {
   NuxtLink: { template: '<a :href="to"><slot /></a>', props: ['to'] },
