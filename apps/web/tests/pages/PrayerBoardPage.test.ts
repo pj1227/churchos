@@ -7,9 +7,8 @@
  *
  * How it connects:
  *   Component under test: app/pages/prayer/board.vue
- *   API call: GET {apiBase}/prayer-requests (member auth required in API,
- *   but the page itself is publicly visible — members see content,
- *   guests see a prompt to submit)
+ *   API call: GET {apiBase}/prayer-requests/public (no auth required —
+ *   returns approved prayers with email and moderation fields stripped)
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
