@@ -1,7 +1,7 @@
 # ChurchOS — Master Build Plan
 
 **Version:** 0.1.0 (pre-release — "Kootenai" targets 1.0.0)  
-**Last updated:** 2026-05-28 (Phase 5 in progress)  
+**Last updated:** 2026-06-01 (Phase 6 complete)  
 **Target deployment:** libbynaz.org (prototype → multi-church)
 
 ---
@@ -84,7 +84,7 @@ feature/* ──► dev ──► staging ──► main (production)
 | 4 | Admin dashboard | `feature/phase-4-admin-dashboard` | ✅ complete |
 | 5 | Prayer board | `feature/phase-5-prayer-board` | ✅ complete |
 | 5b | Prayer board completion | `feature/phase-5b-prayer-completion` | 🔜 next |
-| 6 | Connector framework | `feature/phase-6-connectors` | 🔲 pending |
+| 6 | Connector framework | `feature/phase-6-connectors` | ✅ complete |
 | 7 | Gloo AI integration | `feature/phase-7-gloo-ai` | 🔲 pending |
 | 8 | Giving module | `feature/phase-8-giving` | 🔲 pending |
 | 9 | Member directory | `feature/phase-9-directory` | 🔲 pending |
@@ -386,12 +386,12 @@ ANTHROPIC_API_KEY=...
 - `site_config` table with encrypted connector settings
 
 ### Done criteria
-- [ ] Connector interfaces defined and documented
-- [ ] SMTP email connector working (replaces hardcoded SMTP in Phase 5b)
-- [ ] MS365 email connector via Graph API
-- [ ] Outlook two-way calendar sync (events ↔ church_events)
-- [ ] Admin settings page — Connectors section
-- [ ] All connectors tested with mock providers
+- [x] Connector interfaces defined and documented (EmailConnector ABC)
+- [x] SMTP email connector working (replaces hardcoded import in prayer router)
+- [x] MS365 email connector via Graph API (OAuth2 client credentials)
+- [ ] Outlook two-way calendar sync (events ↔ church_events) — Phase 11
+- [x] Admin settings page — Connectors section (provider dropdown + MS365 fields)
+- [x] All connectors tested with mock providers (14 tests)
 
 ---
 
