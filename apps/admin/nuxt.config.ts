@@ -20,6 +20,11 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineNuxtConfig({
   compatibilityDate: '2024-11-01',
 
+  // Admin dashboard is an authenticated SPA — SSR provides no benefit and
+  // causes Pinia "no active instance" errors because stores are called before
+  // app.use(pinia) on the server. Disabling SSR here is the correct fix.
+  ssr: false,
+
   future: {
     compatibilityVersion: 4,
   },
