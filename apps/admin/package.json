@@ -16,7 +16,7 @@
     "@churchos/types": "workspace:*",
     "@churchos/ui": "workspace:*",
     "@nuxtjs/supabase": "^1.4.0",
-    "@pinia/nuxt": "^0.10.0",
+    "@pinia/nuxt": "^0.11.3",
     "nuxt": "^4.0.0",
     "pinia": "^3.0.4"
   },
