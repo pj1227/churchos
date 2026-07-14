@@ -1,9 +1,9 @@
 # ChurchOS User Guide
 
-**Version:** 0.1.0 (Pre-release)
-**Last updated:** Phase 0 — Repo & Tooling
+**Version:** 0.1.0 pre-release ("Kootenai")
+**Last updated:** Phase 6 — Connector Framework
 
-> This guide is a living document. A new section is added after each phase is completed. If a feature isn't documented here yet, it's planned for a future phase.
+> This guide is a living document. A new section is added after each phase is completed.
 
 ---
 
@@ -24,10 +24,10 @@ ChurchOS is your church's website and management system — all in one place. It
 - [Part 1 — Getting Your Site Online](#part-1--getting-your-site-online)
 - [Part 2 — Managing Your Website](#part-2--managing-your-website)
 - [Part 3 — Prayer Board](#part-3--prayer-board)
-- [Part 4 — Online Giving](#part-4--online-giving)
-- [Part 5 — Member Directory](#part-5--member-directory)
-- [Part 6 — User Accounts & Roles](#part-6--user-accounts--roles)
-- [Part 7 — Settings & Configuration](#part-7--settings--configuration)
+- [Part 4 — Settings & Configuration](#part-4--settings--configuration)
+- [Part 5 — User Accounts & Roles](#part-5--user-accounts--roles)
+- [Part 6 — Online Giving](#part-6--online-giving) *(coming in Phase 8)*
+- [Part 7 — Member Directory](#part-7--member-directory) *(coming in Phase 9)*
 - [Part 8 — Maintenance & Updates](#part-8--maintenance--updates)
 - [Appendix A — Glossary](#appendix-a--glossary)
 - [Appendix B — Getting Help](#appendix-b--getting-help)
@@ -35,8 +35,6 @@ ChurchOS is your church's website and management system — all in one place. It
 ---
 
 ## Part 1 — Getting Your Site Online
-
-> **Phase availability:** This section will be completed after Phase 0–3.
 
 ### What you'll need before starting
 
@@ -48,7 +46,7 @@ Before deploying ChurchOS, gather accounts at these free services. Each takes ab
 | [Supabase](https://supabase.com) | Your database and user logins | Free |
 | [Railway](https://railway.app) | Runs your backend server | Free tier |
 | [Cloudflare](https://cloudflare.com) | Hosts your website + protects it | Free |
-| [Upstash](https://upstash.com) | Prevents form spam | Free |
+| [Upstash](https://upstash.com) | Prevents prayer form spam | Free |
 | [Backblaze B2](https://backblaze.com/b2) | Stores sermon audio/video | Free for first 10 GB |
 | A domain name | e.g. yourdomain.com | ~$12/year (Namecheap) |
 
@@ -70,11 +68,13 @@ You will also need someone comfortable running commands in a terminal (a develop
 | Value | Where to find it |
 |---|---|
 | Project URL | Settings → API → Project URL |
-| Anon public key | Settings → API → Project API keys → `anon public` |
-| Service role key | Settings → API → Project API keys → `service_role` |
+| Publishable key (anon) | Settings → API → Project API keys → `publishable` |
+| Secret key | Settings → API → Project API keys → `secret` |
 | JWT Secret | Settings → API → JWT Settings |
 
-> ⚠️ **Keep the service role key private.** It has full access to your database. Never share it publicly or post it anywhere online.
+> ⚠️ **Keep the secret key private.** It has full access to your database. Never share it publicly or post it anywhere online.
+
+> **Note on Supabase key names:** Supabase renamed their API keys in 2025. What was called "anon key" is now "publishable key." What was called "service role key" is now "secret key." ChurchOS documentation uses the new names.
 
 ---
 
@@ -127,12 +127,11 @@ Once your developer has finished the deployment, run through this checklist:
 - [ ] The contact form submits without error
 - [ ] You can log in at `https://admin.yourdomain.com`
 - [ ] Dark mode toggle works
+- [ ] You can visit `https://api.yourdomain.com/health` and see `"status": "ok"`
 
 ---
 
 ## Part 2 — Managing Your Website
-
-> **Phase availability:** This section will be completed after Phase 4.
 
 ### Logging in to the admin panel
 
@@ -140,32 +139,23 @@ Go to `https://admin.yourdomain.com` and sign in with your email and password.
 
 If you forget your password, click **Forgot Password** on the login page. You'll receive a reset email at the address you registered with.
 
+Once you're in, you'll see the sidebar on the left with navigation links: **Sermons**, **Events**, **Prayer**, and **Settings**. Your name (or email) and a **Sign out** button are in the top-right corner. The ChurchOS version appears at the bottom of the sidebar — useful when reporting an issue.
+
 ---
 
 ### Managing sermons
 
 The sermon archive is one of the most-visited parts of your website. Keeping it up to date helps people find messages they've missed and introduces your church to new visitors.
 
-#### Adding a new sermon
+#### Viewing the sermon list
 
-1. In the admin panel, click **Sermons** in the left sidebar.
-2. Click **+ New Sermon**.
-3. Fill in the details:
-   - **Title** — the sermon title as it will appear on the website.
-   - **Speaker** — the person who preached (usually your pastor's name).
-   - **Series** — if this sermon is part of a series, enter the series name. Sermons with the same series name are grouped together automatically.
-   - **Date** — the date the sermon was preached.
-   - **Description** — a brief summary (2–4 sentences). This shows in search results and on the sermon archive page.
-4. Upload your audio or video file. Supported formats: MP3, M4A (audio), MP4 (video).
-5. Click **Save**. The sermon will appear on the public website immediately.
+Click **Sermons** in the sidebar. You'll see a table of all sermons with their title, speaker, series, and date. Each row has an **Edit** link.
 
-#### Editing or deleting a sermon
+#### Editing a sermon
 
-1. Click **Sermons** in the sidebar.
-2. Find the sermon in the list and click its title.
-3. Make your changes and click **Save**, or click **Delete** to remove it.
+Click the **Edit** link next to any sermon to open its edit form. From here you can update the title, speaker, series, date, and description. Click **Save** to apply your changes. A green confirmation message will appear briefly when the save succeeds.
 
-> Deleting a sermon is permanent. If you're unsure, consider leaving the sermon unpublished instead.
+> **Current limitation:** Sermon creation from the admin panel is not yet available in this version — sermons are currently managed through direct database access. A full Create/Delete interface is planned for a future update.
 
 ---
 
@@ -173,223 +163,193 @@ The sermon archive is one of the most-visited parts of your website. Keeping it 
 
 Events appear on the homepage and on a dedicated events page.
 
-#### Adding an event
+#### Viewing the event list
 
-1. Click **Events** in the sidebar.
-2. Click **+ New Event**.
-3. Fill in: title, date, time, location, and a short description.
-4. Click **Save**.
+Click **Events** in the sidebar. You'll see a table of all events with their title, date, location, and status. Each row has an **Edit** link.
 
-Events past their date are automatically moved to the archive and no longer show on the main events listing.
+Status badges indicate:
+- **Upcoming** (green) — event is in the future
+- **Past** (grey) — event date has passed
 
----
+#### Editing an event
 
-### Updating church info
+Click **Edit** next to any event to update its title, date, time, location, and description. Click **Save** to apply your changes.
 
-To change service times, your address, phone number, or other general information:
-
-1. Click **Settings** in the sidebar.
-2. Click **Church Info**.
-3. Update the fields and click **Save**.
-
-Changes take effect immediately on the public website.
+> **Current limitation:** Like sermons, event creation from the admin panel is in development. Events are currently managed via direct database access.
 
 ---
 
 ## Part 3 — Prayer Board
 
-> **Phase availability:** This section will be completed after Phase 5.
+The prayer board allows your congregation and visitors to submit prayer requests. Every request is reviewed before appearing publicly — nothing goes live without your approval.
 
-The prayer board allows your congregation and visitors to submit prayer requests. Every request is reviewed before appearing publicly — nothing goes live without approval.
+### How it works — the full flow
 
-### How it works
+1. A visitor fills out the prayer request form at `yourdomain.com/prayer`.
+2. The system automatically checks the submission rate (limit: 3 submissions per hour per visitor, to prevent spam).
+3. An AI system (Grok by default; configurable to Gloo AI in Settings) reviews the content for appropriateness.
+4. The request is stored with a status of either `pending` or `rejected` based on the AI review.
+5. You review pending requests in the admin panel and approve or reject them.
+6. Approved requests appear on the public prayer board at `yourdomain.com/prayer/board` (no personal contact info is shown).
+7. When you approve a request, an email notification is sent to your configured prayer chain address (see Settings).
 
-1. A visitor fills out the prayer request form on your website.
-2. The system automatically reviews the request for appropriateness.
-3. You review it in the admin panel and approve or reject it.
-4. Approved requests appear on the public prayer board (without any personal contact information).
+### The submission form
+
+The public form at `/prayer` has three fields:
+- **Prayer request** (required) — the text of the request.
+- **Your name** (optional) — submitters can leave this blank or check "Submit anonymously."
+- **Email** (optional) — for follow-up only; never shown publicly.
+
+Submitters always see a success message, even if the AI moderation rejected their submission. This is intentional — it preserves dignity and doesn't give bad actors information about the moderation system.
 
 ### Moderating prayer requests
 
-1. In the admin panel, click **Prayer Board**.
-2. New submissions appear under the **Pending** tab.
-3. Click a request to read it in full.
-4. Click **Approve** to publish it or **Reject** to remove it.
+1. In the admin panel, click **Prayer Board** in the sidebar.
+2. You'll see two tabs: **Pending** and **Active**.
 
-Rejected requests are not deleted — they are archived in case you need to review them later.
+**Pending tab** shows new submissions waiting for your decision. For each request you'll see the submitter's name (or "Anonymous"), the full text of the request, and **Approve** / **Reject** buttons.
+
+Click **Approve** to publish the request to the public board and trigger a prayer chain email notification. Click **Reject** to decline it. Rejected requests are not deleted — they remain in the database visible only to staff, in case you need to review your decisions later.
+
+**Active tab** shows currently approved, unanswered requests. From here you can mark a request as **Answered** — this flags it visually and moves it to an archived state so the board stays focused on active needs.
 
 ### Notes on privacy
 
-- Submitters' email addresses are stored securely on your server but are **never shown** on the public prayer board.
-- The name or identifying details a submitter chooses to include in their prayer text is their own choice.
-- You can always edit the text of a request before approving it if needed.
+- Submitters' email addresses are stored securely in your database but are **never shown** on the public prayer board.
+- The name or identifying details a submitter includes in their prayer text is their own choice.
+- Approved requests appear on the public board at `/prayer/board`. No login is required to view the board, but no contact information is ever included in what's shown.
 
 ---
 
-## Part 4 — Online Giving
+## Part 4 — Settings & Configuration
 
-> **Phase availability:** This section will be completed after Phase 7.
+The Settings page (click **Settings** in the sidebar) manages three areas.
 
-ChurchOS integrates with Stripe to accept online donations securely. Your church receives funds directly in your Stripe account.
+### Prayer Board — Prayer Chain Email
 
-### Setting up giving
+This is the email address that receives a notification each time you approve a prayer request. Set it to your prayer team's group email or your pastor's address.
 
-Before accepting online gifts, you'll need a free [Stripe](https://stripe.com) account. Your developer will connect Stripe to ChurchOS.
+1. In Settings, find the **Prayer Board** section.
+2. Enter an email address in the **Prayer Chain Email** field.
+3. Click **Save Prayer Settings**.
 
-### Giving funds
-
-You can create multiple giving funds (e.g., General Fund, Building Fund, Missions). Each fund appears as an option on the giving page. Donors choose which fund to give to.
-
-To add or edit funds:
-1. Go to **Settings → Giving**.
-2. Add fund names under **Giving Funds**.
-3. Click **Save**.
-
-### Viewing giving records
-
-1. Click **Giving** in the sidebar.
-2. The overview shows:
-   - Total given this month
-   - Total given this year
-   - Recent transactions
-
-You can filter by date range, fund, or donor.
-
-### Member giving history
-
-Members can view their own giving history when logged in. They can access this from their profile page on the member portal.
-
-Only you (as admin) can see giving records for other members.
-
-### Exporting for taxes
-
-At the end of the year, you can export giving records as a CSV file for your treasurer or accountant. Go to **Giving → Export → Year-End Summary**.
+Leave this blank if you don't want email notifications when approving requests.
 
 ---
 
-## Part 5 — Member Directory
+### Email Connector
 
-> **Phase availability:** This section will be completed after Phase 8.
+ChurchOS sends email notifications using one of two providers. You choose which one in Settings.
 
-The member directory is only visible to logged-in members — it is never publicly accessible. Each member decides exactly what contact information to share.
+**SMTP** (default) — works with any email provider that supports SMTP. Works with Gmail, Office 365, Fastmail, and others. Configured via environment variables set during deployment — contact your developer to update these.
 
-### Adding members
+**Microsoft 365** — uses the Microsoft Graph API to send email from a licensed Microsoft 365 mailbox. Better for churches already using Microsoft 365 for email.
 
-1. Go to **Members** in the sidebar.
-2. Click **+ Invite Member**.
-3. Enter the person's email address. They'll receive an invitation email with a link to create their account.
+#### Setting up Microsoft 365
 
-### What members control
+1. In Settings, find the **Email Connector** section.
+2. Change the provider dropdown from **SMTP** to **Microsoft 365**.
+3. Fill in:
+   - **Tenant ID** — your Azure tenant ID (found in Azure Active Directory)
+   - **Client ID** — the App Registration client ID
+   - **Client Secret** — the App Registration secret value
+   - **Sender** — the licensed Microsoft 365 mailbox address to send from
+4. Click **Save Connector Settings**.
 
-Once a member has an account, they can update their own profile and choose what to show in the directory:
+If any of the Microsoft 365 fields are incomplete, ChurchOS will automatically fall back to SMTP without failing.
 
-- ✅ or ❌ Show my email address
-- ✅ or ❌ Show my phone number
-- ✅ or ❌ Show my home address
-- Profile photo (optional)
-
-If a member opts out of all three, they still appear in the directory with just their name, so the congregation knows they're part of the church — but no contact details are shared.
-
-### Admin view
-
-As an admin, you can see all member records regardless of their visibility settings. You can also update a member's role (see Part 6).
+> For help obtaining Azure credentials, ask your developer or IT contact. They will need to register an application in Azure Active Directory and grant it Mail.Send permissions.
 
 ---
 
-## Part 6 — User Accounts & Roles
+### AI Moderation
 
-> **Phase availability:** This section will be completed after Phase 3.
+Controls which AI system reviews prayer request submissions.
 
-ChurchOS uses a simple role system to control who can do what.
+**Grok** (default) — xAI's Grok model. Used automatically with the deployment-level API key.
+
+**Gloo AI** — an AI platform designed specifically for faith communities. Supports theological tradition settings to make moderation sensitive to your church's context.
+
+To switch to Gloo AI:
+1. In the **AI Moderation** section of Settings, change the provider to **Gloo**.
+2. Enter your **Client ID**, **Client Secret**, and select your **Theological Tradition**.
+3. Click **Save AI Settings**.
+
+If Gloo credentials are missing or Gloo is unavailable, ChurchOS automatically falls back to Grok. If Grok is also unavailable, submissions are approved and queued for manual review — the system never silently drops a prayer request.
+
+---
+
+## Part 5 — User Accounts & Roles
+
+ChurchOS uses a five-level role system to control who can see and do what.
 
 | Role | Who it's for | What they can do |
 |---|---|---|
-| **Admin** | Church administrator or pastor | Everything — full access to all content, settings, members, and giving records |
-| **Staff** | Office staff, worship leaders | Manage sermons, events, and prayer board moderation |
-| **Member** | Verified church members | Access the member directory and their own giving history |
+| **Superadmin** | ChurchOS system administrator | Everything, including changing admin roles |
+| **Admin** | Church administrator or pastor | Full access to all content, settings, members, and giving records |
+| **Staff** | Office staff, worship leaders | Manage sermons, events, and moderate the prayer board |
+| **Member** | Verified church members | Access the member directory (when live) and their own giving history |
 | **Guest** | Everyone else | View public pages and submit prayer requests |
 
-### Changing someone's role
+### Creating accounts
 
-1. Go to **Members** in the sidebar.
-2. Find the person and click their name.
-3. Under **Role**, select the new role from the dropdown.
-4. Click **Save**.
+New users sign in via the admin panel at `https://admin.yourdomain.com`. On first sign-in, Supabase creates their account. By default, new accounts are assigned the **Guest** role.
 
-> Only admins can change roles. Be thoughtful about who receives admin access — admins can see all data including giving records.
+To grant a user staff or admin access, your developer can update their role directly in the Supabase database (Authentication → Users, then update their row in `public.profiles`). A role management UI is planned for a future update.
 
 ### Removing access
 
-To revoke someone's access to the admin panel or member area:
-1. Go to **Members** and find the person.
-2. Change their role to **Guest**.
-
-They will still have an account but will only see public pages.
+To revoke someone's admin access: change their role to **Guest** in the database. They will still have an account but will only see public pages.
 
 ---
 
-## Part 7 — Settings & Configuration
+## Part 6 — Online Giving
 
-> **Phase availability:** This section will be completed after Phase 4.
+> **Coming in Phase 8.** ChurchOS will integrate with Stripe to accept online donations securely. Your church receives funds directly in your Stripe account. No card data will ever touch ChurchOS servers — Stripe handles all payment processing.
 
-### Church Information
+When available, this section will cover setting up your Stripe account, creating and managing giving funds (General Fund, Building Fund, Missions, etc.), viewing giving records in the admin panel, and exporting year-end giving summaries for your treasurer.
 
-Located at **Settings → Church Info**. Update:
-- Church name
-- Address
-- Phone number
-- Email address
-- Service times (multiple services supported)
-- Social media links
+---
 
-### Design & Branding
+## Part 7 — Member Directory
 
-Located at **Settings → Appearance**. Update:
-- Primary color (used for buttons and links)
-- Secondary color (accents)
-- Church logo
-
-> More advanced design changes (fonts, layout) require your developer to update the design system configuration file.
-
-### AI Settings (Prayer Moderation)
-
-Located at **Settings → AI**. Shows:
-- Which AI provider is currently active (Gloo or Anthropic)
-- Your Gloo theological tradition setting
-- Your Gloo publisher name (for the "Ask Our Church" feature)
-
-You generally do not need to change these settings after initial setup.
+> **Coming in Phase 9.** The member directory will be a consent-based, members-only contact list. It will never be publicly accessible. Each member will control exactly what information they share (email, phone, address, photo).
 
 ---
 
 ## Part 8 — Maintenance & Updates
 
-> **Phase availability:** This section will be completed after Phase 10.
-
 ### Checking your current version
 
 Your ChurchOS version appears in:
-- The bottom of every page on your public website
-- The top-right corner of your admin panel
-- By visiting `https://api.yourdomain.com/health` in a browser
+- The bottom-left corner of every admin panel page
+- By visiting `https://api.yourdomain.com/health` in a browser (shows `"version"` and `"codename"`)
 
 ### Updating ChurchOS
 
 ChurchOS is updated by your developer pushing changes through the standard GitHub workflow. When a new version is released:
 
-1. Your developer pulls the latest code.
+1. Your developer pulls the latest code from GitHub.
 2. They test it on a staging environment first.
 3. After confirming everything works, they deploy to production.
 
-For patch updates (bug fixes), this is routine. For major updates, your developer will follow the migration guide included in the release notes.
-
 ### Backups
 
-Your database is backed up automatically by Supabase every day. Free tier retains 7 days of backups. If you ever need to restore from a backup, contact your developer.
+Your database is backed up automatically by Supabase every day. The free tier retains 7 days of backups. If you ever need to restore from a backup, contact your developer.
 
-### Monitoring uptime
+### Checking the API is healthy
 
-If your website goes down, you'll want to know about it quickly. Ask your developer to set up uptime monitoring (Sentry and Better Uptime both have free tiers).
+Visit `https://api.yourdomain.com/health` in your browser at any time. You should see:
+
+```json
+{
+  "status": "ok",
+  "version": "0.1.0",
+  "codename": "Kootenai"
+}
+```
+
+If you see an error or the page doesn't load, your backend server may be down. Contact your developer.
 
 ---
 
@@ -398,17 +358,21 @@ If your website goes down, you'll want to know about it quickly. Ask your develo
 | Term | What it means |
 |---|---|
 | **Admin panel** | The staff-only area at `admin.yourdomain.com` where you manage your site |
-| **Supabase** | The service that stores your church's data |
-| **Cloudflare** | The service that hosts your website and protects it |
-| **Railway** | The service that runs your backend server |
-| **RLS** | Row Level Security — a database feature that ensures members can only see their own records |
-| **JWT** | A secure token that proves you're logged in |
-| **Stripe** | The payment service used for online giving |
-| **Gloo AI** | An AI platform built specifically for faith communities, used to moderate prayer requests |
-| **Slug** | A URL-friendly version of a title, e.g., `my-sermon-title` |
+| **Supabase** | The service that stores your church's data (database + user logins) |
+| **Cloudflare** | The service that hosts your website and protects it from attacks |
+| **Railway** | The service that runs your backend server (the API) |
+| **Upstash** | The service that tracks submission counts for rate limiting (prevents spam) |
+| **RLS** | Row Level Security — a database feature ensuring members can only see their own records |
+| **JWT** | A secure token that proves you're logged in; stored in memory, never on disk |
+| **Stripe** | The payment service used for online giving (Phase 8) |
+| **Gloo AI** | An AI platform built for faith communities, used to moderate prayer requests |
+| **Grok** | xAI's language model; the default AI moderator in ChurchOS |
+| **SMTP** | A standard protocol for sending email; used by Gmail, Office 365, and most providers |
+| **Connector** | A pluggable integration (e.g., email provider, AI provider) that can be swapped without code changes |
+| **Slug** | A URL-friendly version of a name, e.g., `my-sermon-title` |
 | **Monorepo** | A single code repository containing all parts of the application |
 | **Turborepo** | The tool that manages building and testing the monorepo |
-| **Alembic** | The tool that manages database changes (migrations) |
+| **Alembic** | The tool that manages database schema changes (migrations) |
 | **CI/CD** | Continuous Integration / Continuous Deployment — automated testing and deployment |
 
 ---
@@ -431,9 +395,9 @@ Open an issue on GitHub with:
 1. What you were trying to do
 2. What you expected to happen
 3. What actually happened
-4. Your ChurchOS version (check the footer or admin topbar)
+4. Your ChurchOS version (check the admin sidebar footer or `GET /health`)
 
 ---
 
 *ChurchOS User Guide — updated with each phase release.*
-*Current version: 0.1.0 pre-release | Phase 0 — Repo & Tooling*
+*Current version: 0.1.0 pre-release | Phase 6 — Connector Framework | Codename: "Kootenai"*
