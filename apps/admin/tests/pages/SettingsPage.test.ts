@@ -3,11 +3,23 @@
  *
  * What it does:
  *   Verifies the settings page loads current config values, allows editing
- *   the prayer chain email address, and saves via PUT /site-config/{key}.
+ *   the prayer chain email address, and configures:
+ *     - Phase 6: Email Connector (provider selector + MS365 credential fields)
+ *     - Phase 7: AI Moderation (provider selector + Gloo credential fields)
+ *
+ * onMounted GET call order (used by precise-mock tests):
+ *   1. prayer_chain_email
+ *   2. email_provider
+ *   3. ms365_tenant_id
+ *   4. ms365_client_id
+ *   5. ms365_sender
+ *   6. ai_provider
+ *   7. gloo_client_id
+ *   8. gloo_tradition
  *
  * How it connects:
  *   Component under test: app/pages/settings/index.vue
- *   API calls: GET /site-config/prayer_chain_email, PUT /site-config/prayer_chain_email
+ *   API calls: GET /site-config/{key}, PUT /site-config/{key}
  */
 
 import { mount, flushPromises } from '@vue/test-utils'
@@ -68,16 +80,15 @@ describe('SettingsPage', () => {
   })
 
   it('calls PUT /site-config/prayer_chain_email on save', async () => {
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(MOCK_EMAIL_CONFIG)
-      .mockResolvedValueOnce({ ...MOCK_EMAIL_CONFIG, value: 'new@libbynaz.org' })
+    // onMounted makes 5 GET calls; mock them all, then the PUT
+    const fetchMock = vi.fn().mockResolvedValue(MOCK_EMAIL_CONFIG)
     vi.stubGlobal('$fetch', fetchMock)
 
     const wrapper = mountPage()
     await flushPromises()
 
     await wrapper.find('input[name="prayer_chain_email"]').setValue('new@libbynaz.org')
-    await wrapper.find('form').trigger('submit')
+    await wrapper.find('[data-testid="prayer-form"]').trigger('submit')
     await flushPromises()
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -102,17 +113,205 @@ describe('SettingsPage', () => {
   })
 
   it('shows error message when save fails', async () => {
+    // onMounted makes 8 GET calls; provide resolved values for each,
+    // then reject the prayer chain PUT (call 9)
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(MOCK_EMAIL_CONFIG)
-      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValueOnce(MOCK_EMAIL_CONFIG)        // 1: GET prayer_chain_email
+      .mockResolvedValueOnce({ value: 'smtp' })        // 2: GET email_provider
+      .mockResolvedValueOnce({ value: '' })            // 3: GET ms365_tenant_id
+      .mockResolvedValueOnce({ value: '' })            // 4: GET ms365_client_id
+      .mockResolvedValueOnce({ value: '' })            // 5: GET ms365_sender
+      .mockResolvedValueOnce({ value: 'grok' })        // 6: GET ai_provider
+      .mockResolvedValueOnce({ value: '' })            // 7: GET gloo_client_id
+      .mockResolvedValueOnce({ value: 'evangelical' }) // 8: GET gloo_tradition
+      .mockRejectedValueOnce(new Error('Network error')) // 9: PUT prayer_chain_email
     vi.stubGlobal('$fetch', fetchMock)
 
     const wrapper = mountPage()
     await flushPromises()
 
-    await wrapper.find('form').trigger('submit')
+    await wrapper.find('[data-testid="prayer-form"]').trigger('submit')
     await flushPromises()
 
     expect(wrapper.text()).toMatch(/error|failed/i)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Phase 6 — Email Connector section
+// ---------------------------------------------------------------------------
+describe('SettingsPage — Email Connector', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ value: 'smtp' }))
+  })
+
+  it('renders the email connector section', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="connector-section"]').exists()).toBe(true)
+  })
+
+  it('shows a provider dropdown defaulting to smtp', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    const select = wrapper.find('[data-testid="email-provider-select"]')
+    expect(select.exists()).toBe(true)
+    expect((select.element as HTMLSelectElement).value).toBe('smtp')
+  })
+
+  it('hides MS365 fields when smtp is selected', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="ms365-tenant-id"]').exists()).toBe(false)
+  })
+
+  it('shows MS365 credential fields when ms365 is selected', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    const select = wrapper.find('[data-testid="email-provider-select"]')
+    await select.setValue('ms365')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-testid="ms365-tenant-id"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="ms365-client-id"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="ms365-client-secret"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="ms365-sender"]').exists()).toBe(true)
+  })
+
+  it('shows SMTP env var hint when smtp is selected', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.text()).toMatch(/SMTP_HOST/i)
+  })
+
+  it('calls PUT /site-config/email_provider on connector save', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ value: 'smtp' })
+    vi.stubGlobal('$fetch', fetchMock)
+
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper.find('[data-testid="connector-form"]').trigger('submit')
+    await flushPromises()
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('email_provider'),
+      expect.objectContaining({ method: 'PUT' }),
+    )
+  })
+
+  it('shows success message after connector save', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ value: 'smtp' }))
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper.find('[data-testid="connector-save-btn"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="connector-saved"]').isVisible()).toBe(true)
+  })
+
+  it('shows error when connector save fails', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValue({ value: 'smtp' })     // onMounted calls
+      .mockRejectedValueOnce(new Error('fail')) // connector PUT
+    vi.stubGlobal('$fetch', fetchMock)
+
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper.find('[data-testid="connector-save-btn"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="connector-error"]').isVisible()).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Phase 7 — AI Moderation section
+// ---------------------------------------------------------------------------
+describe('SettingsPage — AI Moderation', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ value: 'grok' }))
+  })
+
+  it('renders the AI moderation section', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="ai-moderation-section"]').exists()).toBe(true)
+  })
+
+  it('shows an AI provider dropdown defaulting to grok', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    const select = wrapper.find('[data-testid="ai-provider-select"]')
+    expect(select.exists()).toBe(true)
+    expect((select.element as HTMLSelectElement).value).toBe('grok')
+  })
+
+  it('hides Gloo fields when grok is selected', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="gloo-client-id"]').exists()).toBe(false)
+  })
+
+  it('shows Gloo credential fields when gloo is selected', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    const select = wrapper.find('[data-testid="ai-provider-select"]')
+    await select.setValue('gloo')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-testid="gloo-client-id"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="gloo-client-secret"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="gloo-tradition"]').exists()).toBe(true)
+  })
+
+  it('shows Grok API key field when grok is selected', async () => {
+    const wrapper = mountPage()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="grok-api-key"]').exists()).toBe(true)
+  })
+
+  it('calls PUT /site-config/ai_provider on AI settings save', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ value: 'grok' })
+    vi.stubGlobal('$fetch', fetchMock)
+
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper.find('[data-testid="ai-moderation-form"]').trigger('submit')
+    await flushPromises()
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('ai_provider'),
+      expect.objectContaining({ method: 'PUT' }),
+    )
+  })
+
+  it('shows success message after AI settings save', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ value: 'grok' }))
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper.find('[data-testid="ai-moderation-save-btn"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="ai-moderation-saved"]').isVisible()).toBe(true)
+  })
+
+  it('shows error when AI settings save fails', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValue({ value: 'grok' })
+      .mockRejectedValueOnce(new Error('fail'))
+    vi.stubGlobal('$fetch', fetchMock)
+
+    const wrapper = mountPage()
+    await flushPromises()
+
+    await wrapper.find('[data-testid="ai-moderation-save-btn"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="ai-moderation-error"]').isVisible()).toBe(true)
   })
 })
