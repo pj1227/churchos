@@ -151,8 +151,10 @@ sanity-checking configuration, but queries are never filtering across church IDs
 - `public.church_events` — manually managed; migrating PK to UUID
 - `public.prayer_requests` — Phase 5; UUID PK; RLS enabled; full schema in migration d4e5f6a7b8c9
 - `public.profiles` — RBAC roles stored here; linked to `auth.users` (UUID)
-- **RLS gaps:** `announcements`, `pages`, `sermon_sync_logs`, `site_config`,
-  `alembic_version` are UNRESTRICTED — add RLS policies in Phase 10
+- **RLS:** All tables now have RLS enabled. Migration `h8i9j0k1l2m3` covers
+  `site_config` (admin-only), `announcements` and `pages` (public read published /
+  staff write), `sermon_sync_logs` (staff read only). `alembic_version` is a
+  system table — not accessible via PostgREST, no RLS needed.
 
 ---
 
@@ -168,7 +170,7 @@ sanity-checking configuration, but queries are never filtering across church IDs
 | 5     | Prayer board                  | ✅ Complete     |
 | 5b    | Prayer board completion       | ✅ Complete     |
 | 6     | Connector framework           | ✅ Complete     |
-| 7     | Gloo AI integration           | ⬜ Not started  |
+| 7     | Gloo AI integration           | ✅ Complete     |
 | 8     | Giving module (Stripe)        | ⬜ Not started  |
 | 9     | Member directory              | ⬜ Not started  |
 | 10    | Auth providers (MS365/Google) | ⬜ Not started  |
@@ -177,20 +179,23 @@ sanity-checking configuration, but queries are never filtering across church IDs
 
 ---
 
-## Connector framework (Phase 6)
+## Connector framework (Phases 6–7)
 
 Connector categories use Python ABCs so providers are swappable via `site_config`
-with no code changes. The registry reads `email_provider` at call time.
+with no code changes. The registry reads the provider key at call time.
 
 ```
 apps/api/app/connectors/
   base/email.py              — EmailConnector ABC
+  base/ai.py                 — AiConnector ABC
   providers/email/smtp.py    — SmtpEmailConnector (default, env-var driven)
   providers/email/ms365.py   — Ms365EmailConnector (Graph API, OAuth2)
-  registry.py                — get_email_connector() factory
+  providers/ai/grok.py       — GrokAiConnector (grok-3-mini, OpenAI-compatible API)
+  providers/ai/gloo.py       — GlooAiConnector (faith-context, OAuth2 client credentials)
+  registry.py                — get_email_connector() + get_ai_connector() factories
 ```
 
-**Active provider** is set in `site_config` table:
+**Active providers** are set in `site_config` table:
 
 | Key                   | Values            | Default |
 |-----------------------|-------------------|---------|
@@ -199,9 +204,15 @@ apps/api/app/connectors/
 | `ms365_client_id`     | Azure app UUID    | —       |
 | `ms365_client_secret` | Secret (masked)   | —       |
 | `ms365_sender`        | Licensed mailbox  | —       |
+| `ai_provider`         | `grok` / `gloo`   | `grok`  |
+| `grok_api_key`        | xAI API key       | —       |
+| `gloo_client_id`      | Gloo OAuth2 ID    | —       |
+| `gloo_client_secret`  | Gloo OAuth2 secret (masked) | — |
+| `gloo_tradition`      | e.g. `nazarene`, `evangelical` | — |
 
-Configurable in admin Settings → Email Connector section.
-Fallback policy: unknown or misconfigured provider always falls back to SMTP.
+Configurable in admin Settings → Email Connector and AI Moderation sections.
+Email fallback: unknown or misconfigured provider always falls back to SMTP.
+AI fallback chain: Gloo (if configured) → Grok → fail-open (approve submission).
 
 ---
 
@@ -238,6 +249,7 @@ Run with `cd apps/api && python -m pytest --tb=short`
 - `tests/test_prayer_requests.py` — Prayer board endpoints (24 tests)
 - `tests/test_site_config.py` — Site config CRUD endpoints
 - `tests/test_connectors.py` — Connector ABCs, SMTP, MS365, registry (14 tests)
+- `tests/test_rls_migration.py` — Contract tests verifying RLS migration SQL
 
 **Important:** Uses `PyJWT` (not `python-jose`). Import as `import jwt` and
 catch `jwt.exceptions.InvalidTokenError` (not `JWTError`).
@@ -248,5 +260,5 @@ catch `jwt.exceptions.InvalidTokenError` (not `JWTError`).
 
 - Public website (Phase 2) still uses mock sermon/event data — wire to API in Phase 10
 - Alembic migrations not yet stamped against existing Supabase tables (need `alembic stamp b2c3d4e5f6a7`)
-- Several Supabase tables have no RLS policies (see schema notes above)
 - Logos sync not yet active (sermons exist in DB from prior manual work)
+- Admin app is `ssr: false` (client-only SPA) — `@pinia/nuxt 0.11.3` required for Nuxt 4 compatibility
