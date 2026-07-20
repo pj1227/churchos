@@ -1,7 +1,7 @@
 # ChurchOS User Guide
 
 **Version:** 0.1.0 pre-release ("Kootenai")
-**Last updated:** Phase 6 — Connector Framework
+**Last updated:** Phase 7 — Gloo AI Integration
 
 > This guide is a living document. A new section is added after each phase is completed.
 
@@ -400,4 +400,4 @@ Open an issue on GitHub with:
 ---
 
 *ChurchOS User Guide — updated with each phase release.*
-*Current version: 0.1.0 pre-release | Phase 6 — Connector Framework | Codename: "Kootenai"*
+*Current version: 0.1.0 pre-release | Phase 7 — Gloo AI Integration | Codename: "Kootenai"*

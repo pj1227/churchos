@@ -1,7 +1,7 @@
 # ChurchOS Developer Guide
 
 **Version:** 0.1.0 pre-release ("Kootenai")
-**Last updated:** Phase 6 — Connector Framework
+**Last updated:** Phase 7 — Gloo AI Integration
 **Audience:** New contributors getting oriented in the codebase
 
 ---
@@ -31,7 +31,7 @@ ChurchOS is a **single-tenant, portable CMS** — not a SaaS platform. Each chur
 
 The consequence: `church_id` on every table is always the string `"default"`. It stays in the schema for self-documentation but queries never filter across church IDs.
 
-**Current state:** Phases 0–6 complete. The public site, admin dashboard, prayer board, and connector framework are all live and tested.
+**Current state:** Phases 0–7 complete. The public site, admin dashboard, prayer board, connector framework, and Gloo AI integration are all live and tested.
 
 ---
 
@@ -386,11 +386,37 @@ def get_email_connector() -> EmailConnector:
 
 **Fallback policy:** Unknown providers and incomplete credentials both fall back to SMTP, silently. A misconfigured `site_config` never breaks email delivery.
 
-### AI connectors
+### AI connectors (Phase 7)
 
 Same pattern as email. `get_ai_connector()` returns either `GrokAiConnector` (default) or `GlooAiConnector` based on `ai_provider` in `site_config`.
 
-Fallback chain: Gloo (if configured) → Grok → fail-open (approve if uncertain). The system never silently drops a prayer request due to an AI failure.
+```
+connectors/
+  base/
+    ai.py             # AiConnector ABC with moderate() method
+  providers/
+    ai/
+      grok.py         # GrokAiConnector — grok-3-mini, OpenAI-compatible endpoint
+      gloo.py         # GlooAiConnector — faith-context, OAuth2 client credentials
+  registry.py         # get_ai_connector() factory
+```
+
+**Grok** (`providers/ai/grok.py`) — calls `https://api.x.ai/v1/chat/completions` with `grok-3-mini`. Uses a system prompt tuned for church prayer board moderation. The `GROK_API_KEY` env var is the only required config. Fail-open if no key or any exception.
+
+**Gloo** (`providers/ai/gloo.py`) — faith-context AI designed for churches. Uses OAuth2 client credentials (`gloo_client_id` + `gloo_client_secret` from `site_config`) to obtain an access token from `https://api.gloo.chat/oauth/token`. Sends the prayer text with a `tradition` field (e.g., `"nazarene"`) to `https://api.gloo.chat/v1/moderate`. Fail-open on any exception.
+
+**Fallback chain:** Gloo (if `ai_provider=gloo` and credentials present) → Grok → fail-open (approve submission). The system never silently drops a prayer request due to an AI failure.
+
+**Patching in tests:**
+
+```python
+# The dependency is ai_moderation.moderate_prayer_request, not the connector directly
+with patch("app.dependencies.ai_moderation.moderate_prayer_request", return_value=True):
+    response = client.post("/prayer-requests", json={"body": "Please pray for..."})
+assert response.status_code == 201
+```
+
+**Admin note:** The admin app (`apps/admin`) is configured as `ssr: false` (client-only SPA). This requires `@pinia/nuxt 0.11.3` for Nuxt 4 compatibility — do not upgrade this dependency without verifying Nuxt 4 SSR-off support.
 
 ### Adding a new connector provider
 
@@ -805,15 +831,9 @@ alembic stamp b2c3d4e5f6a7
 
 ### RLS policy status
 
-RLS is active on sensitive tables. Tables that are currently **unrestricted** (to be addressed in Phase 12):
+RLS is active on all sensitive tables as of Phase 6. Migration `h8i9j0k1l2m3` added policies covering `site_config` (admin-only), `announcements` and `pages` (public read published / staff write), and `sermon_sync_logs` (staff read only). `alembic_version` is a system table not accessible via PostgREST — no RLS needed.
 
-- `announcements`
-- `pages`
-- `sermon_sync_logs`
-- `site_config`
-- `alembic_version`
-
-Do not add sensitive data to these tables until RLS policies are in place.
+A full security audit of all policies is planned for Phase 12.
 
 ---
 
@@ -843,4 +863,4 @@ The exception: authentication always **fail-closed**. An invalid or missing JWT 
 ---
 
 *ChurchOS Developer Guide — updated with each phase release.*
-*Current version: 0.1.0 pre-release | Phase 6 — Connector Framework | Codename: "Kootenai"*
+*Current version: 0.1.0 pre-release | Phase 7 — Gloo AI Integration | Codename: "Kootenai"*
