@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 660">
+  <!--
+    Libby Church of the Nazarene — Logo v3
+
+    LAYERS:
+      #background  — white fill, toggle display="none" for transparency
+      #artwork     — black line art (mountains, river waves, flame tongues)
+
+    To hide the white background:
+      document.getElementById('background').setAttribute('display', 'none')
+    To show it:
+      document.getElementById('background').setAttribute('display', 'inline')
+  -->
+
+  <!-- Layer: background (toggleable) -->
+  <g id="background" display="inline">
+    <rect width="800" height="660" fill="white"/>
+  </g>
+
+  <!-- Layer: artwork -->
+  <g id="artwork" fill="none" stroke="#080808" stroke-linecap="round" stroke-linejoin="round">
+
+    <!--
+      MOUNTAINS (Cabinet Range)
+      Two thick-stroke open paths creating nested ridge lines.
+      Outer path = large M silhouette; inner path = parallel ridge inside.
+    -->
+
+    <!-- Outer mountain ridge -->
+    <path
+      d="M 62,512 L 280,156 L 444,316 L 556,218 L 650,328 L 764,512"
+      stroke-width="40"
+    />
+
+    <!-- Inner mountain ridge (parallel, nested inside outer) -->
+    <path
+      d="M 188,512 L 312,288 L 444,372 L 538,306 L 764,512"
+      stroke-width="34"
+    />
+
+    <!--
+      KOOTENAI RIVER WAVES
+      Two calligraphic S-curves below the mountains.
+    -->
+    <path
+      d="M 108,566 C 200,544 308,595 452,564 C 578,536 682,568 794,554"
+      stroke-width="10"
+    />
+    <path
+      d="M 86,616 C 180,592 298,644 454,612 C 601,582 708,615 800,607"
+      stroke-width="10"
+    />
+
+    <!--
+      PENTECOST FLAME TONGUES
+      Wispy calligraphic strokes above the mountain peaks.
+      Centered between the two peaks (~x=498).
+    -->
+    <g stroke-linecap="round" stroke-linejoin="round">
+      <!-- Tallest / central flame -->
+      <path d="M 496,206 C 491,185 499,165 492,144 C 486,124 494,104 490,85 C 486,68 492,56 489,42" stroke-width="3.5"/>
+      <!-- Left outer flame -->
+      <path d="M 480,212 C 476,193 482,175 476,157 C 470,139 476,122 472,107 C 469,94 474,83 471,71" stroke-width="3"/>
+      <!-- Right outer flame -->
+      <path d="M 512,210 C 516,191 510,173 517,155 C 523,138 517,121 521,106 C 524,93 519,82 522,70" stroke-width="3"/>
+      <!-- Left inner flame -->
+      <path d="M 487,210 C 483,192 489,175 483,158 C 477,141 483,125 479,111 C 476,99 481,89 478,79" stroke-width="2.5"/>
+      <!-- Right inner flame -->
+      <path d="M 505,209 C 509,191 504,173 510,156 C 515,140 510,124 514,110 C 517,98 512,88 515,78" stroke-width="2.5"/>
+    </g>
+
+  </g>
+
+</svg>
