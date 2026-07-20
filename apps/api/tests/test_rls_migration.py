@@ -15,9 +15,8 @@ How it connects:
   - Asserts the captured SQL contains the expected statements
 """
 import importlib.util
-import sys
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 
 # ---------------------------------------------------------------------------
