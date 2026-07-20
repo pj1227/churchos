@@ -7,8 +7,60 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
 
 ## [Unreleased]
 
-### In progress
-- Phase 6: Gloo AI integration
+---
+
+## [0.4.0] — 2026-06-01 "Kootenai" pre-release
+
+### Phase 7 — Gloo AI Integration
+
+#### Added
+- `connectors/base/ai.py` — `AiConnector` ABC with `moderate(body)` abstract method
+- `connectors/providers/ai/gloo.py` — `GlooAiConnector`: OAuth2 client credentials flow to `https://api.gloo.chat/oauth/token`; sends prayer text + tradition context to `/v1/moderate`; fail-open on any exception
+- `connectors/providers/ai/grok.py` — `GrokAiConnector`: xAI `grok-3-mini` via OpenAI-compatible endpoint `https://api.x.ai/v1/chat/completions`; church-context system prompt; fail-open if no API key
+- `connectors/registry.py` — `get_ai_connector()` factory; reads `ai_provider` from `site_config`; fallback chain: Gloo → Grok → fail-open
+- `dependencies/ai_moderation.py` — `moderate_prayer_request(body)` refactored to delegate to `get_ai_connector()` from registry
+- Admin Settings UI — AI Moderation section: provider selector (Grok / Gloo), Gloo fields (Client ID, Client Secret, Theological Tradition), Grok API key field
+- `site_config` keys: `ai_provider`, `gloo_client_id`, `gloo_client_secret`, `gloo_tradition`, `grok_api_key`
+- `tests/test_ai_connectors.py` — tests for Grok, Gloo, fallback chain, and `ai_moderation` dependency
+
+#### Architecture
+- AI moderation is now fully provider-swappable via `site_config` with no code changes
+- Fail-open at every level: Gloo exception → try Grok; Grok exception → approve submission; Redis unavailable → skip rate limit
+- `@pinia/nuxt 0.11.3` pinned for Nuxt 4 compatibility (admin app is `ssr: false`)
+
+---
+
+## [0.3.0] — 2026-06-01 "Kootenai" pre-release
+
+### Phase 6 — Connector Framework
+
+#### Added
+- `connectors/base/email.py` — `EmailConnector` ABC with `send_email()` and `send_prayer_notification()` abstract methods
+- `connectors/providers/email/smtp.py` — `SmtpEmailConnector` (default; env-var driven: `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`)
+- `connectors/providers/email/ms365.py` — `Ms365EmailConnector`: Microsoft Graph API, OAuth2 client credentials
+- `connectors/registry.py` — `get_email_connector()` factory; reads `email_provider` from `site_config`; fallback to SMTP on misconfiguration
+- Admin Settings UI — Email Connector section: provider dropdown (SMTP / Microsoft 365), MS365 credential fields (Tenant ID, Client ID, Client Secret, Sender)
+- `site_config` keys: `email_provider`, `ms365_tenant_id`, `ms365_client_id`, `ms365_client_secret`, `ms365_sender`
+- RLS policies added via migration `h8i9j0k1l2m3`: `site_config` (admin-only), `announcements` + `pages` (public read published / staff write), `sermon_sync_logs` (staff read only)
+- `tests/test_connectors.py` — 14 tests covering EmailConnector ABC, SMTP, MS365, and registry fallback behavior
+
+#### Architecture
+- Email delivery is now provider-swappable via `site_config` with no code changes
+- Unknown or misconfigured provider always silently falls back to SMTP — email delivery is never interrupted by a config error
+
+---
+
+## [0.2.1] — 2026-05-29 "Kootenai" pre-release
+
+### Phase 5b — Prayer Board Completion
+
+#### Added
+- Admin Settings page (`pages/settings/index.vue`) — Prayer chain email configuration; save/load via `GET|PATCH /site-config`
+- `GET /prayer-requests/public` endpoint — approved requests only; PII stripped via `PrayerRequestPublic` schema
+- Public prayer board at `apps/web/app/pages/prayer/board.vue` — displays approved, unanswered requests; no login required
+- `PATCH /prayer-requests/{id}/answered` endpoint — staff+; marks request as answered
+- Admin Prayer Queue — Active tab showing approved unanswered requests with Mark Answered action
+- Additional Vitest coverage for Settings and Prayer Queue pages (83 total admin tests)
 
 ---
 
