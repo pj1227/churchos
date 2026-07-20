@@ -22,7 +22,7 @@ defineProps<{
 
 <template>
   <div class="co-card-featured">
-    <p v-if="title" class="mb-3 font-semibold text-lg leading-snug" style="font-family: var(--font-ui)">
+    <p v-if="title" class="mb-3 font-semibold text-lg leading-snug text-charcoal-900 dark:text-stone-50" style="font-family: var(--font-ui)">
       {{ title }}
     </p>
     <slot />
