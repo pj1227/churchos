@@ -1,7 +1,7 @@
 # ChurchOS — Master Build Plan
 
 **Version:** 0.1.0 (pre-release — "Kootenai" targets 1.0.0)  
-**Last updated:** 2026-06-01 (Phase 6 complete)  
+**Last updated:** 2026-07-20 (Phase 7 complete)  
 **Target deployment:** libbynaz.org (prototype → multi-church)
 
 ---
@@ -83,9 +83,9 @@ feature/* ──► dev ──► staging ──► main (production)
 | 3 | Auth & database | `feature/phase-3-supabase-auth` | ✅ complete |
 | 4 | Admin dashboard | `feature/phase-4-admin-dashboard` | ✅ complete |
 | 5 | Prayer board | `feature/phase-5-prayer-board` | ✅ complete |
-| 5b | Prayer board completion | `feature/phase-5b-prayer-completion` | 🔜 next |
+| 5b | Prayer board completion | `feature/phase-5b-prayer-completion` | ✅ complete |
 | 6 | Connector framework | `feature/phase-6-connectors` | ✅ complete |
-| 7 | Gloo AI integration | `feature/phase-7-gloo-ai` | 🔲 pending |
+| 7 | Gloo AI integration | `feature/phase-7-gloo-ai` | ✅ complete |
 | 8 | Giving module | `feature/phase-8-giving` | 🔲 pending |
 | 9 | Member directory | `feature/phase-9-directory` | 🔲 pending |
 | 10 | Auth providers | `feature/phase-10-auth-providers` | 🔲 pending |
@@ -282,7 +282,7 @@ describe('Button', () => {
 ### Flow
 1. Visitor submits prayer request (no auth required)
 2. Redis rate limit checked — **3 submissions / IP / hour** (Upstash Redis)
-3. Anthropic Claude moderates content → `approved` or `rejected`
+3. AI moderates content → `approved` or `rejected` (Gloo primary, Grok fallback, fail-open)
 4. Request stored with `status` field; submitter always receives 201 (dignity-preserving)
 5. Approved requests visible to **members+** (not fully public — requires auth)
 6. Staff can view pending/rejected queue at `GET /prayer-requests/pending`
@@ -309,7 +309,7 @@ describe('Button', () => {
 ```bash
 UPSTASH_REDIS_URL=rediss://...upstash.io:6380
 UPSTASH_REDIS_TOKEN=...
-ANTHROPIC_API_KEY=...
+GROK_API_KEY=...   # xAI fallback moderator; Gloo credentials stored in site_config
 ```
 
 ### Done criteria
@@ -317,11 +317,11 @@ ANTHROPIC_API_KEY=...
 - [x] Rate limiting dependency implemented (patchable _redis_incr)
 - [x] AI moderation dependency implemented (patchable, fail-open)
 - [x] Alembic migration created for prayer_requests table
-- [ ] Alembic migration applied in Supabase (`alembic upgrade head` or manual stamp)
-- [ ] Railway env vars set: UPSTASH_REDIS_URL, UPSTASH_REDIS_TOKEN, ANTHROPIC_API_KEY
-- [ ] Public submission form added to apps/web
-- [ ] Admin moderation queue page added to apps/admin
-- [ ] Feature branch merged → dev → staging → main
+- [x] Alembic migration applied in Supabase
+- [x] Railway env vars set: UPSTASH_REDIS_URL, UPSTASH_REDIS_TOKEN, GROK_API_KEY
+- [x] Public submission form added to apps/web
+- [x] Admin moderation queue page added to apps/admin
+- [x] Feature branch merged → dev → staging → main
 
 ---
 
@@ -343,12 +343,13 @@ ANTHROPIC_API_KEY=...
 - `public.prayer_updates` — UUID PK, prayer_request_id FK, body TEXT, created_by UUID, created_at
 
 ### Done criteria
-- [ ] `prayer_chain_email` configurable in admin settings, stored in `site_config`
-- [ ] Email sent on approved submission
-- [ ] Public prayer board page on apps/web
-- [ ] Staff can add updates to a request
-- [ ] Staff can mark request as answered
-- [ ] Answered requests visible in historical archive
+- [x] `prayer_chain_email` configurable in admin settings, stored in `site_config`
+- [x] Email sent on approved submission
+- [x] Public prayer board page on apps/web
+- [x] Staff can mark request as answered
+- [x] Answered requests visible in admin Active tab
+- [ ] Staff can add updates to a request — deferred to Phase 12
+- [ ] Historical archive view — deferred to Phase 12
 
 ---
 
@@ -406,10 +407,11 @@ ANTHROPIC_API_KEY=...
 - Provider chain: Gloo → Grok → fail-open
 
 ### Done criteria
-- [ ] Gloo API called for primary moderation via AI connector interface
-- [ ] Fallback to Grok on Gloo error
-- [ ] Both providers tested with fixture responses
-- [ ] Configurable via admin settings UI (no env var required)
+- [x] Gloo API called for primary moderation via AI connector interface (OAuth2 client credentials)
+- [x] Fallback to Grok on Gloo error; fail-open if both unavailable
+- [x] Both providers tested with fixture responses (test_ai_connectors.py)
+- [x] Configurable via admin settings UI — ai_provider, gloo_client_id/secret/tradition, grok_api_key stored in site_config
+- [x] Feature branch merged → dev → staging → main
 
 ---
 
@@ -556,11 +558,8 @@ B2_KEY_ID=
 B2_APPLICATION_KEY=
 B2_BUCKET_NAME=
 
-# AI
-GLOO_CLIENT_ID=
-GLOO_CLIENT_SECRET=
-GLOO_TRADITION=evangelical
-ANTHROPIC_API_KEY=
+# AI (Gloo credentials are stored in site_config, not env vars)
+GROK_API_KEY=    # xAI fallback — set in Railway env vars
 
 # App
 CHURCH_SLUG=libby-naz
