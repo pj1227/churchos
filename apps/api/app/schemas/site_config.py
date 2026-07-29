@@ -20,6 +20,7 @@ class SiteConfigRead(BaseModel):
     value:      str | None   # "***" when is_secret=True
     is_secret:  bool
     is_json:    bool
+    is_public:  bool
     updated_at: str | None
 
     model_config = {"from_attributes": True}
@@ -29,3 +30,4 @@ class SiteConfigWrite(BaseModel):
     value:     str
     is_secret: bool = False
     is_json:   bool = False
+    is_public: bool = False

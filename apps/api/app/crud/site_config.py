@@ -50,6 +50,28 @@ def list_config(church_id: str = "") -> list[dict]:
     return resp.json()
 
 
+def list_public_config(church_id: str = "") -> list[dict]:
+    """
+    Fetch config rows safe for unauthenticated public read — CMS content
+    keys like church_name, church_phone, service_times_json. Filtered at
+    the query layer (is_public=true AND is_secret=false) so a row can never
+    reach an unauthenticated caller by accident, even if is_public and
+    is_secret were both mistakenly set true.
+    """
+    cid = church_id or settings.church_id
+    if not cid:
+        return []
+    params = {
+        "church_id": f"eq.{cid}",
+        "is_public": "eq.true",
+        "is_secret": "eq.false",
+        "select":    "*",
+    }
+    resp = httpx.get(_base_url(), headers=_headers(), params=params)
+    resp.raise_for_status()
+    return resp.json()
+
+
 def get_config_value(key: str, church_id: str = "") -> dict | None:
     """Fetch a single config row by key. Returns None if not found."""
     cid = church_id or settings.church_id
@@ -85,6 +107,7 @@ def set_config_value(key: str, payload: SiteConfigWrite, church_id: str = "") ->
         "value":      payload.value,
         "is_secret":  payload.is_secret,
         "is_json":    payload.is_json,
+        "is_public":  payload.is_public,
         "updated_at": now,
     }
     # Supabase upsert: Prefer: resolution=merge-duplicates
