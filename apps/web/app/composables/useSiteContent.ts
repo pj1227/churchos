@@ -87,19 +87,19 @@ const DEFAULTS: SiteContent = {
   service_time_3_time:  '6:30 PM',
 
   home_tagline:           'A Place to Know God and Be Known',
-  home_welcome_message:   'Join us every Sunday morning for worship, teaching from God’s Word, and a community that walks alongside you.',
-  home_new_here_heading:  'New Here? We’d Love to Meet You.',
-  home_new_here_tagline:  'Whether you’re exploring faith for the first time or looking for a church home in Libby, you’re welcome here. Reach out — we’ll be in touch.',
+  home_welcome_message:   'Join us every Sunday morning for worship, teaching from God\'s Word, and a community that walks alongside you.',
+  home_new_here_heading:  'New Here? We\'d Love to Meet You.',
+  home_new_here_tagline:  'Whether you\'re exploring faith for the first time or looking for a church home in Libby, you\'re welcome here. Reach out — we\'ll be in touch.',
   home_scripture_ref:     'Matthew 22:37–39',
-  home_scripture_text:    'Love the Lord your God with all your heart, with all your soul, and with all your mind... Love your neighbor as yourself.',
+  home_scripture_text:    'Love the Lord your God with all your heart and with all your soul and with all your mind. This is the first and greatest commandment. And the second is like it: Love your neighbor as yourself.',
 
   about_tagline:            'A community of believers in Libby, Montana — loving God and loving our neighbors since 1910.',
-  about_mission_statement:  'We are a congregation in the Wesleyan-Holiness tradition, part of the global Church of the Nazarene.',
-  about_what_we_believe:    'We believe in the Trinity, the authority of Scripture, salvation through Jesus Christ, ongoing sanctification, and the return of Christ.',
+  about_mission_statement:  'We exist to make Christlike disciples in the nations — beginning right here in Libby, Montana. That means gathering together in worship, growing in the knowledge of God\'s Word, and going into our community with the love and hope of Jesus.\n\nAs part of the Church of the Nazarene, we stand in the Wesleyan-Holiness tradition — believing that God\'s grace is available to all, that real transformation is possible, and that love is the mark of the Kingdom.',
+  about_what_we_believe:    'We believe in one God — Father, Son, and Holy Spirit. We believe the Bible is the inspired Word of God, the sufficient rule of faith and practice. We believe that all people are fallen and in need of God\'s grace, and that through Jesus Christ\'s atoning death and resurrection, salvation is freely offered to all who believe.\n\nWe believe the Holy Spirit sanctifies believers — setting them apart and empowering them to love God and neighbor fully. We look forward to the return of Christ and the resurrection of the dead.',
   about_scripture_ref:      'Micah 6:8',
-  about_scripture_text:     'He has shown you, O mortal, what is good. And what does the Lord require of you?',
+  about_scripture_text:     'He has shown you, O mortal, what is good. And what does the LORD require of you? To act justly and to love mercy and to walk humbly with your God.',
 
-  sermons_tagline:       'Teaching from God’s Word every Sunday morning. Listen online or join us in person.',
+  sermons_tagline:       'Teaching from God\'s Word every Sunday morning. Listen online or join us in person.',
   sermons_display_count: '6',
 
   giving_header:  'Give',

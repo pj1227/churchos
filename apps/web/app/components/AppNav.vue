@@ -20,9 +20,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useSiteContent } from '../composables/useSiteContent'
 
 const colorMode = useColorMode()
 const mobileOpen = ref(false)
+const content = useSiteContent()
 
 const isDark = computed(() => colorMode.value === 'dark')
 
@@ -47,13 +49,19 @@ const navLinks = [
       <NuxtLink
         to="/"
         class="flex items-center gap-2 no-underline"
-        aria-label="Libby Church — home"
+        :aria-label="`${content.church_name} — home`"
       >
+        <img
+          v-if="content.church_logo_url"
+          :src="content.church_logo_url"
+          :alt="content.church_name"
+          class="h-9 w-auto object-contain"
+        >
         <span
           style="font-family: var(--font-display)"
           class="text-white text-lg font-semibold tracking-wide leading-tight"
         >
-          Libby Church<span class="hidden sm:inline"> of the Nazarene</span>
+          {{ content.church_name }}
         </span>
       </NuxtLink>
 

@@ -21,10 +21,13 @@ import {
   CoContainer,
   CoSection,
 } from '@churchos/ui'
+import { useSiteContent } from '../composables/useSiteContent'
+
+const content = useSiteContent()
 
 useSeoMeta({
-  title: 'About — Libby Church of the Nazarene',
-  description: 'Learn about Libby Church of the Nazarene — our mission, history, beliefs, and service times.',
+  title: () => `About — ${content.value.church_name}`,
+  description: () => `Learn about ${content.value.church_name} — our mission, history, beliefs, and service times.`,
 })
 </script>
 
@@ -42,8 +45,7 @@ useSeoMeta({
         style="font-family: var(--font-body)"
         class="text-white/70 text-lg max-w-xl"
       >
-        A community of believers in Libby, Montana — loving God and loving
-        our neighbors since 1910.
+        {{ content.about_tagline }}
       </p>
     </CoContainer>
   </CoSection>
@@ -59,22 +61,12 @@ useSeoMeta({
           Our Mission
         </h2>
         <p
+          v-for="(paragraph, i) in content.about_mission_statement.split('\n\n')"
+          :key="i"
           style="font-family: var(--font-body)"
-          class="text-charcoal-900/80 dark:text-stone-200 text-lg leading-relaxed mb-4"
+          class="text-charcoal-900/80 dark:text-stone-200 text-lg leading-relaxed mb-4 last:mb-0"
         >
-          We exist to make Christlike disciples in the nations — beginning right
-          here in Libby, Montana. That means gathering together in worship,
-          growing in the knowledge of God's Word, and going into our community
-          with the love and hope of Jesus.
-        </p>
-        <p
-          style="font-family: var(--font-body)"
-          class="text-charcoal-900/80 dark:text-stone-200 text-lg leading-relaxed"
-        >
-          As part of the Church of the Nazarene, we stand in the Wesleyan-
-          Holiness tradition — believing that God's grace is available to all,
-          that real transformation is possible, and that love is the mark of
-          the Kingdom.
+          {{ paragraph }}
         </p>
       </div>
     </CoContainer>
@@ -84,9 +76,8 @@ useSeoMeta({
   <CoSection class="bg-stone-100 dark:bg-charcoal-800">
     <CoContainer class="max-w-3xl">
       <div data-testid="scripture">
-        <CoScriptureCallout reference="Micah 6:8">
-          He has shown you, O mortal, what is good. And what does the LORD require
-          of you? To act justly and to love mercy and to walk humbly with your God.
+        <CoScriptureCallout :reference="content.about_scripture_ref">
+          {{ content.about_scripture_text }}
         </CoScriptureCallout>
       </div>
     </CoContainer>
@@ -111,8 +102,8 @@ useSeoMeta({
             Sunday Morning
           </p>
           <p style="font-family: var(--font-ui)" class="text-charcoal-900/70 dark:text-stone-300 text-sm">
-            Sunday School — 9:30 AM<br>
-            Morning Worship — 10:45 AM
+            {{ content.service_time_1_label }} — {{ content.service_time_1_time }}<br>
+            {{ content.service_time_2_label }} — {{ content.service_time_2_time }}
           </p>
         </div>
 
@@ -124,7 +115,7 @@ useSeoMeta({
             Wednesday Evening
           </p>
           <p style="font-family: var(--font-ui)" class="text-charcoal-900/70 dark:text-stone-300 text-sm">
-            Prayer &amp; Bible Study — 6:30 PM
+            {{ content.service_time_3_label }} — {{ content.service_time_3_time }}
           </p>
         </div>
       </div>
@@ -140,9 +131,9 @@ useSeoMeta({
           style="font-family: var(--font-ui)"
           class="not-italic text-charcoal-900/70 dark:text-stone-300 text-sm leading-relaxed"
         >
-          409 Louisiana Ave, Libby, MT 59923<br>
-          <a href="tel:+14062932931" class="text-forest-500 hover:text-forest-600 transition-colors">
-            (406) 293-2931
+          {{ content.church_address_line1 }}, {{ content.church_city }}, {{ content.church_state }} {{ content.church_zip }}<br>
+          <a :href="`tel:+1${content.church_phone.replace(/\D/g, '')}`" class="text-forest-500 hover:text-forest-600 transition-colors">
+            {{ content.church_phone }}
           </a>
         </address>
       </div>
@@ -159,22 +150,12 @@ useSeoMeta({
         What We Believe
       </h2>
       <p
+        v-for="(paragraph, i) in content.about_what_we_believe.split('\n\n')"
+        :key="i"
         style="font-family: var(--font-body)"
-        class="text-charcoal-900/80 dark:text-stone-200 leading-relaxed mb-4"
+        class="text-charcoal-900/80 dark:text-stone-200 leading-relaxed mb-4 last:mb-0"
       >
-        We believe in one God — Father, Son, and Holy Spirit. We believe the
-        Bible is the inspired Word of God, the sufficient rule of faith and
-        practice. We believe that all people are fallen and in need of God's
-        grace, and that through Jesus Christ's atoning death and resurrection,
-        salvation is freely offered to all who believe.
-      </p>
-      <p
-        style="font-family: var(--font-body)"
-        class="text-charcoal-900/80 dark:text-stone-200 leading-relaxed"
-      >
-        We believe the Holy Spirit sanctifies believers — setting them apart and
-        empowering them to love God and neighbor fully. We look forward to the
-        return of Christ and the resurrection of the dead.
+        {{ paragraph }}
       </p>
     </CoContainer>
   </CoSection>

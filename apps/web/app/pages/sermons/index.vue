@@ -24,10 +24,13 @@ import {
   CoContainer,
   CoSection,
 } from '@churchos/ui'
+import { useSiteContent } from '../../composables/useSiteContent'
+
+const content = useSiteContent()
 
 useSeoMeta({
-  title: 'Sermons — Libby Church of the Nazarene',
-  description: 'Listen to recent sermons from Libby Church of the Nazarene.',
+  title: () => `Sermons — ${content.value.church_name}`,
+  description: () => `Listen to recent sermons from ${content.value.church_name}.`,
 })
 
 // Placeholder sermon data — replaced with API fetch in Phase 4
@@ -103,8 +106,7 @@ const sermons = [
         style="font-family: var(--font-body)"
         class="text-white/70 text-lg max-w-xl"
       >
-        Teaching from God's Word every Sunday morning. Listen online or join us
-        in person.
+        {{ content.sermons_tagline }}
       </p>
     </CoContainer>
   </CoSection>

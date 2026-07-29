@@ -27,11 +27,14 @@ import {
   CoContainer,
   CoSection,
 } from '@churchos/ui'
+import { useSiteContent } from '../composables/useSiteContent'
+
+const content = useSiteContent()
 
 useSeoMeta({
-  title: 'Libby Church of the Nazarene',
+  title: () => content.value.church_name,
   description: 'A community of faith in Libby, Montana. Join us Sunday mornings for worship and God\'s Word.',
-  ogTitle: 'Libby Church of the Nazarene',
+  ogTitle: () => content.value.church_name,
   ogDescription: 'A community of faith in Libby, Montana.',
 })
 </script>
@@ -47,21 +50,20 @@ useSeoMeta({
     />
 
     <CoContainer class="relative py-24 md:py-36 flex flex-col items-center text-center gap-6">
-      <CoBadge color="gold" class="mb-2">Libby, Montana</CoBadge>
+      <CoBadge color="gold" class="mb-2">{{ content.church_city }}, {{ content.church_state }}</CoBadge>
 
       <h1
         style="font-family: var(--font-display)"
         class="text-4xl md:text-6xl font-bold text-white leading-tight max-w-3xl"
       >
-        A Place to Know God<br class="hidden md:block"> and Be Known
+        {{ content.home_tagline }}
       </h1>
 
       <p
         style="font-family: var(--font-body)"
         class="text-white/80 text-lg md:text-xl max-w-xl leading-relaxed"
       >
-        Join us every Sunday morning for worship, teaching from God's Word,
-        and a community that walks alongside you.
+        {{ content.home_welcome_message }}
       </p>
 
       <div class="flex flex-wrap gap-4 justify-center mt-2">
@@ -83,7 +85,7 @@ useSeoMeta({
         class="mt-4 inline-flex items-center gap-2 bg-white/10 backdrop-blur rounded-full px-5 py-2 text-white/90 text-sm"
       >
         <span class="text-gold-400">⊙</span>
-        <span>Sundays · 9:30 AM Sunday School · 10:45 AM Worship</span>
+        <span>Sundays · {{ content.service_time_1_time }} {{ content.service_time_1_label }} · {{ content.service_time_2_time }} {{ content.service_time_2_label }}</span>
       </div>
     </CoContainer>
   </section>
@@ -91,10 +93,8 @@ useSeoMeta({
   <!-- ── Scripture callout ──────────────────────────────────────────────── -->
   <CoSection data-testid="scripture" class="bg-stone-100 dark:bg-charcoal-800">
     <CoContainer class="max-w-3xl">
-      <CoScriptureCallout reference="Matthew 22:37–39">
-        Love the Lord your God with all your heart and with all your soul and
-        with all your mind. This is the first and greatest commandment. And the
-        second is like it: Love your neighbor as yourself.
+      <CoScriptureCallout :reference="content.home_scripture_ref">
+        {{ content.home_scripture_text }}
       </CoScriptureCallout>
     </CoContainer>
   </CoSection>
@@ -190,14 +190,13 @@ useSeoMeta({
         style="font-family: var(--font-display)"
         class="text-2xl md:text-3xl font-semibold text-white mb-4"
       >
-        New Here? We'd Love to Meet You.
+        {{ content.home_new_here_heading }}
       </h2>
       <p
         style="font-family: var(--font-body)"
         class="text-white/80 max-w-xl mx-auto mb-8 leading-relaxed"
       >
-        Whether you're exploring faith for the first time or looking for a
-        church home in Libby, you're welcome here. Reach out — we'll be in touch.
+        {{ content.home_new_here_tagline }}
       </p>
       <NuxtLink to="/contact">
         <CoButton variant="secondary" class="!text-base !px-8 !py-3">

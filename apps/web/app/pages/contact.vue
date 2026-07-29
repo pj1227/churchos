@@ -21,10 +21,13 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { CoFormInput, CoButton, CoContainer, CoSection } from '@churchos/ui'
+import { useSiteContent } from '../composables/useSiteContent'
+
+const content = useSiteContent()
 
 useSeoMeta({
-  title: 'Contact — Libby Church of the Nazarene',
-  description: 'Get in touch with Libby Church of the Nazarene. We\'d love to hear from you.',
+  title: () => `Contact — ${content.value.church_name}`,
+  description: () => `Get in touch with ${content.value.church_name}. We'd love to hear from you.`,
 })
 
 const form = ref({
@@ -158,15 +161,15 @@ async function handleSubmit() {
               style="font-family: var(--font-ui)"
               class="not-italic text-charcoal-900/70 dark:text-stone-300 leading-relaxed"
             >
-              409 Louisiana Ave<br>
-              Libby, MT 59923
+              {{ content.church_address_line1 }}<br>
+              {{ content.church_city }}, {{ content.church_state }} {{ content.church_zip }}
             </address>
             <p style="font-family: var(--font-ui)" class="mt-2">
               <a
-                href="tel:+14062932931"
+                :href="`tel:+1${content.church_phone.replace(/\D/g, '')}`"
                 class="text-forest-500 hover:text-forest-600 dark:text-forest-300 transition-colors"
               >
-                (406) 293-2931
+                {{ content.church_phone }}
               </a>
             </p>
           </div>
@@ -179,10 +182,22 @@ async function handleSubmit() {
               Service Times
             </p>
             <ul style="font-family: var(--font-ui)" class="list-none m-0 p-0 text-charcoal-900/70 dark:text-stone-300 space-y-1">
-              <li>Sunday School — 9:30 AM</li>
-              <li>Morning Worship — 10:45 AM</li>
-              <li>Wednesday Prayer — 6:30 PM</li>
+              <li>{{ content.service_time_1_label }} — {{ content.service_time_1_time }}</li>
+              <li>{{ content.service_time_2_label }} — {{ content.service_time_2_time }}</li>
+              <li>{{ content.service_time_3_label }} — {{ content.service_time_3_time }}</li>
             </ul>
+          </div>
+
+          <div v-if="content.church_office_hours">
+            <p
+              style="font-family: var(--font-display)"
+              class="text-lg font-semibold text-charcoal-900 dark:text-stone-50 mb-2"
+            >
+              Office Hours
+            </p>
+            <p style="font-family: var(--font-ui)" class="text-charcoal-900/70 dark:text-stone-300">
+              {{ content.church_office_hours }}
+            </p>
           </div>
 
           <div>
@@ -193,12 +208,12 @@ async function handleSubmit() {
               Pastor
             </p>
             <p style="font-family: var(--font-ui)" class="text-charcoal-900/70 dark:text-stone-300">
-              Pastor John Smith<br>
+              {{ content.church_pastor_name }}<br>
               <a
-                href="mailto:pastor@libbychurch.org"
+                :href="`mailto:${content.church_office_email}`"
                 class="text-forest-500 hover:text-forest-600 dark:text-forest-300 transition-colors"
               >
-                pastor@libbychurch.org
+                {{ content.church_office_email }}
               </a>
             </p>
           </div>

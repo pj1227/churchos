@@ -18,6 +18,9 @@
 -->
 
 <script setup lang="ts">
+import { useSiteContent } from '../composables/useSiteContent'
+
+const content = useSiteContent()
 const version = '0.1.0'
 const year = new Date().getFullYear()
 
@@ -44,18 +47,18 @@ const links = [
           style="font-family: var(--font-display)"
           class="text-white text-lg font-semibold mb-2"
         >
-          Libby Church of the Nazarene
+          {{ content.church_name }}
         </p>
         <address
           style="font-family: var(--font-ui)"
           class="not-italic text-stone-400 text-sm leading-relaxed"
         >
-          409 Louisiana Ave<br>
-          Libby, MT 59923
+          {{ content.church_address_line1 }}<br>
+          {{ content.church_city }}, {{ content.church_state }} {{ content.church_zip }}
         </address>
         <p style="font-family: var(--font-ui)" class="text-stone-400 text-sm mt-2">
-          <a href="tel:+14062932931" class="hover:text-white transition-colors">
-            (406) 293-2931
+          <a :href="`tel:+1${content.church_phone.replace(/\D/g, '')}`" class="hover:text-white transition-colors">
+            {{ content.church_phone }}
           </a>
         </p>
       </div>
@@ -90,9 +93,9 @@ const links = [
           Service Times
         </p>
         <ul style="font-family: var(--font-ui)" class="list-none m-0 p-0 text-stone-400 text-sm space-y-1">
-          <li>Sunday School — 9:30 AM</li>
-          <li>Morning Worship — 10:45 AM</li>
-          <li>Wednesday Prayer — 6:30 PM</li>
+          <li>{{ content.service_time_1_label }} — {{ content.service_time_1_time }}</li>
+          <li>{{ content.service_time_2_label }} — {{ content.service_time_2_time }}</li>
+          <li>{{ content.service_time_3_label }} — {{ content.service_time_3_time }}</li>
         </ul>
       </div>
 
@@ -102,7 +105,7 @@ const links = [
     <div class="border-t border-charcoal-700 dark:border-charcoal-800">
       <div class="co-container py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
         <p style="font-family: var(--font-ui)" class="text-stone-500 text-xs">
-          © {{ year }} Libby Church of the Nazarene. All rights reserved.
+          © {{ year }} {{ content.church_name }}. All rights reserved.
         </p>
         <p style="font-family: var(--font-ui)" class="text-stone-600 text-xs">
           ChurchOS v{{ version }} "Kootenai"

@@ -41,5 +41,8 @@ vi.stubGlobal('useRuntimeConfig', () => ({
   public: { apiBase: 'https://api.test' },
 }))
 
-// $fetch — default no-op; tests override per-test with vi.stubGlobal
-vi.stubGlobal('$fetch', vi.fn())
+// $fetch — defaults to an empty resolved response so components that call
+// useSiteContent() (or anything else awaiting/chaining $fetch) don't throw
+// during mount just because a test didn't need to care about the response.
+// Tests that DO care override this per-test with vi.stubGlobal.
+vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({}))

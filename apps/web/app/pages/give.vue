@@ -15,9 +15,13 @@
     with checkout flow in Phase 7.
 -->
 <script setup lang="ts">
+import { useSiteContent } from '../composables/useSiteContent'
+
+const content = useSiteContent()
+
 useSeoMeta({
-  title: 'Give — Libby Church of the Nazarene',
-  description: 'Support the ministry of Libby Church of the Nazarene.',
+  title: () => `Give — ${content.value.church_name}`,
+  description: () => `Support the ministry of ${content.value.church_name}.`,
 })
 </script>
 
@@ -26,11 +30,10 @@ useSeoMeta({
     <CoContainer>
       <div class="py-24 text-center">
         <h1 class="font-cinzel text-4xl font-bold text-charcoal-900 dark:text-stone-50 mb-6">
-          Give
+          {{ content.giving_header }}
         </h1>
         <p class="text-lg text-charcoal-600 dark:text-stone-300 mb-8 max-w-xl mx-auto">
-          Online giving is coming soon. In the meantime, you can give in person
-          during any Sunday service, or mail a check to the church office.
+          {{ content.giving_tagline }}
         </p>
         <NuxtLink to="/contact" class="btn-primary">Contact Us</NuxtLink>
       </div>
