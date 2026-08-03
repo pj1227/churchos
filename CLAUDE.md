@@ -151,10 +151,19 @@ sanity-checking configuration, but queries are never filtering across church IDs
 - `public.church_events` — manually managed; migrating PK to UUID
 - `public.prayer_requests` — Phase 5; UUID PK; RLS enabled; full schema in migration d4e5f6a7b8c9
 - `public.profiles` — RBAC roles stored here; linked to `auth.users` (UUID)
-- **RLS:** All tables now have RLS enabled. Migration `h8i9j0k1l2m3` covers
-  `site_config` (admin-only), `announcements` and `pages` (public read published /
+- **RLS:** Migration `h8i9j0k1l2m3` covers `site_config` (admin-only),
+  `announcements` (public read active) and `pages` (public read published /
   staff write), `sermon_sync_logs` (staff read only). `alembic_version` is a
   system table — not accessible via PostgREST, no RLS needed.
+  **Not yet applied to the live database** — `alembic_version` is at
+  `g7h8i9j0k1l2`. Until `alembic upgrade head` runs, `site_config` has RLS off
+  and is readable by anyone holding the publishable key.
+- **Role checks in policies:** always `public.current_user_role()`, never an
+  inline `SELECT ... FROM public.profiles`. The inline form recurses on
+  profiles itself (42P17) and takes down any table whose policy chain reaches
+  it. Write policies must name `FOR INSERT / UPDATE / DELETE` — `FOR ALL` is
+  evaluated on SELECT too, which is how role checks broke public reads on
+  `churches` and `sermons`. See migration `k1l2m3n4o5p6`.
 
 ---
 

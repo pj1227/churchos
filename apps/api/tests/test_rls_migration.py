@@ -111,11 +111,23 @@ class TestAnnouncementsRls:
     def test_enables_rls_on_announcements(self):
         assert "ALTER TABLE PUBLIC.ANNOUNCEMENTS ENABLE ROW LEVEL SECURITY" in self.sql
 
-    def test_public_read_policy_for_published(self):
-        # Published announcements should be readable by everyone
+    def test_public_read_policy_gates_on_a_real_column(self):
+        """The policy must gate on a column announcements actually has.
+
+        This originally read `USING (is_published = true)`, copied from the
+        pages policy. announcements has no is_published column — it uses
+        is_active / active_from / active_until — so the migration failed with
+        `column "is_published" does not exist` partway through, taking the rest
+        of the RLS hardening down with it.
+        """
         assert "ANNOUNCEMENTS" in self.sql
-        # Policy should use IS_PUBLISHED or similar gating
-        assert "IS_PUBLISHED" in self.sql or "PUBLIC READ" in self.sql
+        assert "IS_ACTIVE" in self.sql, (
+            "announcements policy must gate on is_active; there is no "
+            "is_published column on this table."
+        )
+        assert "IS_PUBLISHED = TRUE" not in self.sql.split("PAGES")[0], (
+            "announcements policy references is_published, which does not exist."
+        )
 
     def test_staff_write_policy(self):
         assert "ANNOUNCEMENTS" in self.sql

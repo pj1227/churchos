@@ -85,16 +85,24 @@ def upgrade() -> None:
     """)
 
     # -----------------------------------------------------------------------
-    # announcements — public read for is_published=true; staff+ write
+    # announcements — public read for currently-active rows; staff+ write
+    #
+    # This table has no is_published column (that is `pages`). Visibility is
+    # is_active plus an optional active_from/active_until window, so the policy
+    # mirrors what the public site would show.
     # -----------------------------------------------------------------------
     op.execute("""
         ALTER TABLE public.announcements ENABLE ROW LEVEL SECURITY;
     """)
 
     op.execute("""
-        CREATE POLICY "announcements: public read published"
+        CREATE POLICY "announcements: public read active"
         ON public.announcements FOR SELECT
-        USING (is_published = true);
+        USING (
+            is_active = true
+            AND (active_from  IS NULL OR active_from  <= now())
+            AND (active_until IS NULL OR active_until >= now())
+        );
     """)
 
     op.execute(f"""
@@ -150,7 +158,7 @@ def downgrade() -> None:
     op.execute("ALTER TABLE public.pages DISABLE ROW LEVEL SECURITY;")
 
     # announcements
-    op.execute('DROP POLICY IF EXISTS "announcements: public read published" ON public.announcements;')
+    op.execute('DROP POLICY IF EXISTS "announcements: public read active" ON public.announcements;')
     op.execute('DROP POLICY IF EXISTS "announcements: staff can write" ON public.announcements;')
     op.execute("ALTER TABLE public.announcements DISABLE ROW LEVEL SECURITY;")
 
