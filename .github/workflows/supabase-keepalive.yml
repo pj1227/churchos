@@ -1,0 +1,59 @@
+name: Supabase Keepalive
+
+# Supabase pauses free-tier projects after 7 consecutive days with no API
+# traffic. This workflow pings PostgREST every 3 days so the inactivity timer
+# never gets close, and so a single failed run can't cost us the project.
+#
+# NOTE: GitHub only schedules cron from the DEFAULT branch. This workflow does
+# nothing until it has been merged all the way to main.
+
+on:
+  schedule:
+    # 12:00 UTC on days 1, 4, 7, ... of each month — max gap 3 days.
+    - cron: "0 12 */3 * *"
+  # Manual trigger. GitHub disables cron on repos with no commits for 60 days,
+  # and a project that has already paused needs a ping to wake it.
+  workflow_dispatch:
+
+# Never let two pings overlap.
+concurrency:
+  group: supabase-keepalive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    name: Ping Supabase REST API
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping PostgREST
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+
+          # Anon key only. This request is a liveness check, not a data path —
+          # it must never carry the RLS-bypassing secret key.
+          #
+          # Target: church_events. The obvious choice would be `churches` or
+          # `sermons` (both have a `public read USING (true)` policy), but both
+          # currently return HTTP 500 to anon — their write policies are
+          # `FOR ALL`, so the USING clause runs on SELECT too and recurses
+          # through the profiles admin-read policy (42P17). church_events is
+          # RLS default-deny, so it returns an empty array rather than data;
+          # that still reaches Postgres and resets the inactivity timer, and a
+          # bad URL or key still fails the job. See the allowlist in
+          # apps/api/tests/test_keepalive_workflow.py.
+          #
+          # --fail makes curl exit non-zero on 4xx/5xx. Without it a 401 would
+          # look like a successful run while the project drifts toward a pause.
+          # --retry covers transient cold-start latency, not auth errors.
+          curl --fail --silent --show-error \
+               --retry 3 --retry-delay 10 --max-time 30 \
+               "${SUPABASE_URL}/rest/v1/church_events?select=id&limit=1" \
+               -H "apikey: ${SUPABASE_ANON_KEY}" \
+               -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+               -o /dev/null
+
+          echo "Supabase responded — inactivity timer reset."
