@@ -1,8 +1,12 @@
 # ChurchOS — Master Build Plan
 
 **Version:** 0.1.0 (pre-release — "Kootenai" targets 1.0.0)  
-**Last updated:** 2026-06-01 (Phase 6 complete)  
+**Last updated:** 2026-08-03 (Phase 7 complete; Phase 8 next)  
 **Target deployment:** libbynaz.org (prototype → multi-church)
+
+> This file owns the **roadmap**. [CLAUDE.md](CLAUDE.md) owns conventions,
+> commands, environment variables, and security rules — do not restate those
+> here.
 
 ---
 
@@ -39,10 +43,10 @@ churchos/
 ├── packages/
 │   ├── ui/                   Shared Vue component library
 │   ├── types/                Shared TypeScript definitions
-│   ├── config/               Tailwind design tokens
-│   ├── maps/                 Pluggable map component
-│   └── office-info/          Service times, hours, contact info
-├── docs/                     VitePress documentation
+│   ├── config/               Design tokens (tokens.css) + component CSS
+│   ├── maps/                 PLANNED — pluggable map component
+│   └── office-info/          PLANNED — service times, hours, contact info
+├── docs/                     Documentation assets (VitePress site planned)
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml
@@ -83,14 +87,19 @@ feature/* ──► dev ──► staging ──► main (production)
 | 3 | Auth & database | `feature/phase-3-supabase-auth` | ✅ complete |
 | 4 | Admin dashboard | `feature/phase-4-admin-dashboard` | ✅ complete |
 | 5 | Prayer board | `feature/phase-5-prayer-board` | ✅ complete |
-| 5b | Prayer board completion | `feature/phase-5b-prayer-completion` | 🔜 next |
+| 5b | Prayer board completion | `feature/phase-5b-prayer-completion` | ✅ complete |
 | 6 | Connector framework | `feature/phase-6-connectors` | ✅ complete |
-| 7 | Gloo AI integration | `feature/phase-7-gloo-ai` | 🔲 pending |
-| 8 | Giving module | `feature/phase-8-giving` | 🔲 pending |
+| 7 | Gloo AI integration | `feature/phase-7-gloo-ai` | ✅ complete |
+| 8 | Giving module | `feature/phase-8-giving` | 🔜 next |
 | 9 | Member directory | `feature/phase-9-directory` | 🔲 pending |
 | 10 | Auth providers | `feature/phase-10-auth-providers` | 🔲 pending |
 | 11 | Advanced connectors | `feature/phase-11-advanced-connectors` | 🔲 pending |
 | 12 | Polish & hardening | `feature/phase-12-hardening` | 🔲 pending |
+
+> **Phase numbering changed in `07b5da4`** when the connector framework was
+> split out. Older planning documents use a 0–10 numbering in which Giving was
+> Phase 7, Directory Phase 8, Multi-Church Phase 9, and Polish Phase 10. The
+> table above is authoritative.
 
 ---
 
@@ -216,15 +225,25 @@ describe('Button', () => {
 ### Pages
 - `/` — Homepage: hero, upcoming events, latest sermon, scripture callout
 - `/sermons` — Sermon listing (static data for now)
-- `/sermons/[slug]` — Individual sermon
-- `/about` — About the church
+- `/sermons/[slug]` — Individual sermon with audio/video player
+- `/about` — Church story, pastor bio, beliefs
+- `/give` — Giving information + link to online giving
 - `/contact` — Contact form (no backend yet — mailto fallback)
+- `/privacy` — Privacy policy
+- `/404` — Custom not-found page
+
+### Deferred out of this phase
+- `packages/office-info` — service times, address, phone, email as shared config
+- `packages/maps` — pluggable map component (Google Maps embed first)
+
+Neither package exists yet; the values are inlined in `apps/web` for now.
 
 ### Done criteria
 - [ ] `nuxt generate` produces static HTML for all routes
 - [ ] All pages render correct title, meta description
 - [ ] Component integration tests pass
-- [ ] Lighthouse performance ≥ 90 on homepage
+- [ ] Accessibility tests: no missing alt text, correct heading hierarchy
+- [ ] Lighthouse performance ≥ 90 on homepage (≥ 95 target in Phase 12)
 
 ---
 
@@ -282,7 +301,8 @@ describe('Button', () => {
 ### Flow
 1. Visitor submits prayer request (no auth required)
 2. Redis rate limit checked — **3 submissions / IP / hour** (Upstash Redis)
-3. Anthropic Claude moderates content → `approved` or `rejected`
+3. AI moderates content → `approved` or `rejected` (Grok today; Gloo → Grok →
+   fail-open after Phase 7)
 4. Request stored with `status` field; submitter always receives 201 (dignity-preserving)
 5. Approved requests visible to **members+** (not fully public — requires auth)
 6. Staff can view pending/rejected queue at `GET /prayer-requests/pending`
@@ -309,7 +329,7 @@ describe('Button', () => {
 ```bash
 UPSTASH_REDIS_URL=rediss://...upstash.io:6380
 UPSTASH_REDIS_TOKEN=...
-ANTHROPIC_API_KEY=...
+GROK_API_KEY=...          # Anthropic was swapped for xAI Grok in 5f50ca5
 ```
 
 ### Done criteria
@@ -405,6 +425,12 @@ ANTHROPIC_API_KEY=...
 - Grok API key (fallback)
 - Provider chain: Gloo → Grok → fail-open
 
+### Deferred to a later phase
+- **Gloo Grounded Completions** — RAG over publisher content, requires a
+  `gloo_publisher` setting alongside the existing credentials
+- **"Ask Our Church" chatbot** — `POST /api/v1/ask`, grounded in the church's own
+  content. Stub it as `501 Not Implemented` until there is content to ground on.
+
 ### Done criteria
 - [ ] Gloo API called for primary moderation via AI connector interface
 - [ ] Fallback to Grok on Gloo error
@@ -421,12 +447,22 @@ ANTHROPIC_API_KEY=...
 ### Rules (non-negotiable)
 - Stripe.js handles all card input in the browser
 - Our API only sees Stripe payment intents / events
+- Webhook endpoint validates the Stripe signature
 - No bulk export of giving records
+- Members can only ever see their own giving history
+- No card data in API logs or responses
+
+### Surfaces
+- Public giving page (Stripe.js card element)
+- `/admin/giving` — totals by fund, recent transactions
+- Member-facing giving history for the signed-in member
 
 ### Done criteria
 - [ ] Stripe webhook endpoint tested with Stripe CLI
 - [ ] Successful and failed payments handled
+- [ ] Signature validation rejects forged webhooks
 - [ ] Admin can see giving summary (not bulk export)
+- [ ] A member sees their own history and no one else's
 
 ---
 
@@ -440,11 +476,16 @@ ANTHROPIC_API_KEY=...
 - PII encrypted AES-256, column-level
 - No bulk export endpoint
 - Consent required before listing
+- Every directory access writes an audit log entry
+- Per-field visibility flags (`show_email`, `show_phone`, `show_address`) that
+  the member controls from their own profile editor
 
 ### Done criteria
 - [ ] Directory only accessible with `member` JWT
 - [ ] PII columns encrypted in DB, decrypted in service layer
 - [ ] No unauthenticated route returns directory data
+- [ ] Responses respect each member's `show_*` flags
+- [ ] Audit log written on every directory read
 
 ---
 
@@ -504,73 +545,54 @@ Per-deployment, admins configure which providers are enabled via the admin setti
 ### Portability
 - `.env.example` fully documented for every required account and key
 - Setup guide: step-by-step from GitHub clone → live deployment
-- Design tokens (colors, fonts, logo) configurable via `site_config` without code changes
+  (`docs/new-church-setup.md`)
+- Design tokens (colors, fonts, logo) configurable per church via CSS custom
+  properties / `site_config` without code changes
+- Retire the unused `packages/config/tailwind.config.ts` stub so `tokens.css` is
+  unambiguously the only token source
 - One-click Railway deploy button in README
 
 ### Hardening
 - Lighthouse ≥ 95 (performance, accessibility, best practices, SEO)
+- Core Web Vitals passing; API response time < 200ms at P95
 - Sentry error tracking in all apps
-- Security audit: OWASP Top 10 pass
+- Uptime monitoring (free tier)
+- Security audit: OWASP Top 10 pass; review every RLS policy
+- `pip-audit` and `pnpm audit` clean; penetration test the auth endpoints
 - RLS policies on all remaining unprotected tables
+- Wire `apps/web` to the live API (it still renders mock sermon/event data)
+- Fix the root `pnpm type-check` / `pnpm test` tasks so they do not need the
+  `--filter=!@churchos/api` workaround
 - VitePress documentation: setup, deployment, connector configuration, contributing
 
 ### Done criteria
 - [ ] A new church can go from GitHub clone to live site following only the docs
 - [ ] Lighthouse ≥ 95 on all public pages
 - [ ] Security audit passed
-- [ ] Version `1.0.0` ("Kootenai") tagged and released
+- [ ] Version `1.0.0` ("Kootenai") tagged, released, and written up in CHANGELOG.md
 
 ---
 
-## Security requirements (always active)
+## Security requirements
 
-- Access tokens: memory only, never localStorage
-- Refresh tokens: HttpOnly cookies only
-- JWT verified server-side on every protected endpoint
-- RLS active on all sensitive Supabase tables
-- PII: AES-256 column-level encryption
-- Rate limiting: Redis on all write endpoints
-- Prayer submissions: AI-moderated before going public
-- Directory: `member` role minimum, never public
-- No bulk export endpoint for directory or giving records
-- Stripe.js handles all card input — card data never touches our API
+Always active, every phase. Canonical list lives in
+[CLAUDE.md → Security requirements](CLAUDE.md#security-requirements-always-enforce).
 
 ---
 
-## Key env vars (never committed)
+## Environment variables
 
-```bash
-# Supabase (note: Supabase renamed keys in 2025 — anon→publishable, service→secret)
-SUPABASE_URL=
-SUPABASE_SERVICE_KEY=      # "secret key" in Supabase dashboard
-SUPABASE_JWT_SECRET=
-NUXT_PUBLIC_SUPABASE_URL=
-NUXT_PUBLIC_SUPABASE_ANON_KEY=   # "publishable key" in Supabase dashboard
-
-# Redis (Upstash)
-UPSTASH_REDIS_URL=
-UPSTASH_REDIS_TOKEN=
-
-# Backblaze B2
-B2_KEY_ID=
-B2_APPLICATION_KEY=
-B2_BUCKET_NAME=
-
-# AI
-GLOO_CLIENT_ID=
-GLOO_CLIENT_SECRET=
-GLOO_TRADITION=evangelical
-ANTHROPIC_API_KEY=
-
-# App
-CHURCH_SLUG=libby-naz
-CHURCH_NAME=Libby Church of the Nazarene
-```
+Canonical, per-app, with the real variable names:
+[CLAUDE.md → Environment variables](CLAUDE.md#environment-variables), backed by
+each app's `.env.example`. Do not maintain a second list here — the copy that
+used to live in this file had drifted out of sync with `app/config.py`.
 
 ---
 
 ## Versioning
 
-Semantic versioning. Current: `0.1.0` pre-release.  
-Release `1.0.0` is named **"Kootenai"**.  
-Version is visible in: site footer · admin topbar badge · `GET /health` response.
+Semantic versioning. Current: `0.1.0` pre-release.
+Release `1.0.0` is named **"Kootenai"**; the codename ladder and bump rules are
+in [CLAUDE.md → Versioning](CLAUDE.md#versioning).
+Version is visible in: `version.json` · site footer · admin topbar badge ·
+`GET /health` response.
