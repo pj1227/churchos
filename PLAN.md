@@ -1,598 +1,445 @@
 # ChurchOS — Master Build Plan
 
-**Version:** 0.1.0 (pre-release — "Kootenai" targets 1.0.0)  
-**Last updated:** 2026-08-03 (Phase 7 complete; Phase 8 next)  
-**Target deployment:** libbynaz.org (prototype → multi-church)
+> **Status: DRAFT — awaiting owner review** · Drafted 2026-10-07 on `docs/replan`
+> This plan replaces the FastAPI + Supabase plan, which is preserved at git tag
+> [`archive/fastapi-0.x`](https://github.com/pj1227/churchos/tree/archive/fastapi-0.x).
+> Items marked **⚖ Decision** need your approval before the phase that depends on them starts.
 
-> This file owns the **roadmap**. [CLAUDE.md](CLAUDE.md) owns conventions,
-> commands, environment variables, and security rules — do not restate those
-> here.
-
----
-
-## How to use this document
-
-Each phase is a **fully working, deployable state** of the application. You never move to the next phase until:
-
-1. All tests for the current phase pass (`turbo test`)
-2. The feature branch has been merged: `feature/phase-N-*` → `dev`
-3. A commit message documents what was completed
-
-TDD rule: **write the failing test first, then write the code to make it pass.** No exceptions.
+This file owns the **roadmap**: what each phase delivers and when it is done.
+[CLAUDE.md](CLAUDE.md) owns **how we work** (workflow, standards, security rules).
+[docs/design/DOMAIN-MODEL.md](docs/design/DOMAIN-MODEL.md) owns **what the data looks like**.
+None of the three restates the others.
 
 ---
 
-## Repository layout
+## 1. Direction
+
+ChurchOS is a modular, open-source church CMS. It is built first for Libby Church
+of the Nazarene, where it replaces https://libbynaz.org, and is designed so any
+church can self-host it on inexpensive shared hosting.
+
+| Principle | What it means in practice |
+|---|---|
+| **Cheap hosting first** | The reference deployment is cPanel shared hosting (PHP + MariaDB). Nothing may require a long-running process, Node on the server, or a paid platform. |
+| **Native libraries first** | Each language gets a plain core library (PHP, TypeScript, later Python) with no framework dependency. Framework code (Laravel, Nuxt, later FastAPI) is a thin adapter on top. |
+| **One domain model** | Every backend and frontend implements [DOMAIN-MODEL.md](docs/design/DOMAIN-MODEL.md). JSON Schemas enforce it, and contract tests check every backend over HTTP. |
+| **Modules** | Features ship as modules that an admin enables and configures. Every module includes its own admin screens. |
+| **Vertical slices** | A phase delivers one feature through every layer: contract → core → API → admin → public site → deploy. No phase leaves "wire it up later" work. |
+| **Done means live** | A phase is done only when it is running in production, after verification on test. |
+
+---
+
+## 2. Architecture at a glance
+
+### Repository layout (target — ⚖ Decision D1)
 
 ```
 churchos/
 ├── apps/
-│   ├── web/                  Nuxt 4 — public church website
-│   ├── admin/                Nuxt 4 — staff admin dashboard
-│   └── api/                  FastAPI (Python 3.12) — REST API
-│       ├── app/
-│       │   ├── main.py
-│       │   ├── models/
-│       │   ├── routers/
-│       │   ├── schemas/
-│       │   ├── services/
-│       │   └── dependencies/
-│       ├── tests/
-│       ├── alembic/
-│       └── requirements.txt
-├── packages/
-│   ├── ui/                   Shared Vue component library
-│   ├── types/                Shared TypeScript definitions
-│   ├── config/               Design tokens (tokens.css) + component CSS
-│   ├── maps/                 PLANNED — pluggable map component
-│   └── office-info/          PLANNED — service times, hours, contact info
-├── docs/                     Documentation assets (VitePress site planned)
-├── .github/
-│   └── workflows/
-│       ├── ci.yml
-│       ├── deploy-staging.yml
-│       └── deploy-production.yml
-├── turbo.json
-├── pnpm-workspace.yaml
-├── version.json              { "version": "0.1.0", "codename": "Kootenai" }
-└── CHANGELOG.md
+│   ├── web/                  Nuxt — public site (statically generated)
+│   ├── admin/                Nuxt — admin dashboard (static SPA)
+│   └── api-laravel/          Laravel — REST API (thin adapter over the PHP core)
+│   # later: api-fastapi/ (restored from archive/fastapi-0.x), other frontends
+├── libs/
+│   ├── shared/
+│   │   └── contract/         JSON Schemas + openapi.yaml (enforces the domain model)
+│   ├── php/
+│   │   └── churchos-core/    Plain PHP: domain objects, ports, services, source adapters
+│   └── ts/
+│       ├── churchos-core/    Plain TS: generated types, API client
+│       ├── ui/               Vue components (plain Vue, no Nuxt)
+│       └── theme/            Design tokens (CSS) + component CSS
+├── e2e/                      Browser tests against a real running stack
+├── docs/                     design/, guides, assets
+├── .github/workflows/
+├── turbo.json · pnpm-workspace.yaml · version.json · CHANGELOG.md
 ```
 
----
+- `libs/<lang>/` keeps the per-language cores side by side, so adding Python later is
+  `libs/python/churchos-core` + `apps/api-fastapi`.
+- PHP packages are managed by Composer. Each one also gets a small `package.json`
+  so Turborepo can run its lint and test tasks with everything else.
 
-## Branch & environment model
+### Environments
+
+| Env | Where | Deployed from | Purpose |
+|---|---|---|---|
+| dev | `localhost` | your working branch | Development; full stack runs locally |
+| test | `test.libbynaz.org` | `staging` branch (automatic) | Release candidate; you verify in the UI here |
+| prod | `libbynaz.org` | `main` branch (automatic) | Live site |
+
+### Hosting topology (Namecheap Stellar Business — ⚖ Decision D2)
+
+One domain per environment serves all three apps, so there is no cross-origin
+setup and login cookies work simply:
+
+| Path | Serves |
+|---|---|
+| `/` | `apps/web` static build |
+| `/admin` | `apps/admin` static build |
+| `/api` | Laravel (its `public/` entry point only) |
+
+- Laravel code lives **outside** `public_html`; only its entry point is exposed.
+- Deploys are **atomic**: GitHub Actions builds, uploads a new release directory over
+  SSH, runs `php artisan migrate --force`, switches a `current` symlink, checks
+  `/api/health`, and rolls back if that fails.
+- Background work runs from **one cPanel cron entry** (every minute) that invokes
+  the ChurchOS scheduler. The scheduler decides what is actually due (see Phase 6).
+- Host facts recorded 2026-10-07: PHP selector offers 8.2–8.5 (currently 8.1, EOL;
+  target **8.4**); MariaDB **11.4.13** (server charset `latin1` — we force `utf8mb4`);
+  `pdo_mysql` and `pdo_pgsql` available; SSH available.
+
+### Release model
 
 ```
-feature/* ──► dev ──► staging ──► main (production)
-                │         │           │
-                │         │           └── Cloudflare Pages (prod) + Railway (prod API)
-                │         └── Cloudflare Pages (staging) + Railway (staging API)
-                └── PR checks only (lint, type-check, test, build)
+feature/phase-N-* ──► dev ──(release PR, every 2 weeks)──► staging ──(after UI sign-off)──► main
+                       CI only                             test.libbynaz.org              libbynaz.org + git tag
 ```
 
-- `main` — production, protected, requires CI + PR approval
-- `staging` — QA environment, mirrors prod config
-- `dev` — integration branch, feature branches land here
-- `feature/phase-N-description` — all implementation work
+- **Cadence (⚖ Decision D3): two weeks.** Work that isn't ready waits for the next release.
+- Unfinished modules may ship to production **disabled**. The module switch doubles
+  as a feature flag.
+- Hotfixes: `fix/*` from `main` → `main`, then merged back into `staging` and `dev`.
 
----
+### Versioning (⚖ Decision D4)
 
-## Phase index
+Semantic versioning with Kootenai River Valley codenames per minor release.
 
-| # | Name | Branch | Status |
-|---|------|--------|--------|
-| 0 | Repo & tooling | `feature/phase-0-repo-setup` | ✅ complete |
-| 1 | Design system | `feature/phase-1-design-system` | ✅ complete |
-| 2 | Public website | `feature/phase-2-public-site` | ✅ complete (mock data — wired to API in Phase 12) |
-| 3 | Auth & database | `feature/phase-3-supabase-auth` | ✅ complete |
-| 4 | Admin dashboard | `feature/phase-4-admin-dashboard` | ✅ complete |
-| 5 | Prayer board | `feature/phase-5-prayer-board` | ✅ complete |
-| 5b | Prayer board completion | `feature/phase-5b-prayer-completion` | ✅ complete |
-| 6 | Connector framework | `feature/phase-6-connectors` | ✅ complete |
-| 7 | Gloo AI integration | `feature/phase-7-gloo-ai` | ✅ complete |
-| 8 | Giving module | `feature/phase-8-giving` | 🔜 next |
-| 9 | Member directory | `feature/phase-9-directory` | 🔲 pending |
-| 10 | Auth providers | `feature/phase-10-auth-providers` | 🔲 pending |
-| 11 | Advanced connectors | `feature/phase-11-advanced-connectors` | 🔲 pending |
-| 12 | Polish & hardening | `feature/phase-12-hardening` | 🔲 pending |
-
-> **Phase numbering changed in `07b5da4`** when the connector framework was
-> split out. Older planning documents use a 0–10 numbering in which Giving was
-> Phase 7, Directory Phase 8, Multi-Church Phase 9, and Polish Phase 10. The
-> table above is authoritative.
-
----
-
-## Phase 0 — Repo & Tooling
-
-**Branch:** `feature/phase-0-repo-setup`  
-**Goal:** A working monorepo where every workspace package can be linted, type-checked, tested, and built from the root.
-
-### Deliverables
-
-| File | Purpose |
-|------|---------|
-| `pnpm-workspace.yaml` | Declares all workspace packages |
-| `turbo.json` | Pipeline: lint → type-check → test → build with caching |
-| `package.json` (root) | Workspace root — no app code, only tooling deps |
-| `apps/web/package.json` | Nuxt 4 app stub |
-| `apps/admin/package.json` | Nuxt 4 app stub |
-| `apps/api/requirements.txt` | FastAPI + pytest deps |
-| `apps/api/app/main.py` | FastAPI app with `/health` endpoint |
-| `apps/api/tests/test_health.py` | **First test** — GET /health returns 200 + version |
-| `packages/ui/package.json` | Vue component library stub |
-| `packages/types/package.json` | TypeScript types stub |
-| `packages/config/package.json` | Tailwind config stub |
-| `version.json` | `{ "version": "0.1.0", "codename": "Kootenai" }` |
-| `CHANGELOG.md` | Stub |
-| `.github/workflows/ci.yml` | PR CI: install → lint → type-check → test → build |
-| `.github/workflows/deploy-staging.yml` | Push to `staging` → deploy |
-| `.github/workflows/deploy-production.yml` | Push to `main` → deploy |
-| `.gitignore` | Node, Python, env files |
-| `.env.example` (per app) | Documents required env vars, never committed |
-
-### First test (TDD anchor)
-
-```python
-# apps/api/tests/test_health.py
-def test_health_returns_200_with_version(client):
-    response = client.get("/health")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "ok"
-    assert data["version"] == "0.1.0"
-```
-
-This test is written **before** `main.py` has a `/health` route. It fails first. Then we implement the route to make it pass.
-
-### Done criteria
-- [ ] `pnpm install` exits 0 from root
-- [ ] `turbo build` exits 0
-- [ ] `turbo lint` exits 0  
-- [ ] `turbo test` exits 0 (API health test passes)
-- [ ] All files committed on `feature/phase-0-repo-setup`
-
----
-
-## Phase 1 — Design System
-
-**Branch:** `feature/phase-1-design-system`  
-**Goal:** A shared Tailwind token config and a typed Vue component library that both `apps/web` and `apps/admin` can consume.
-
-### Deliverables
-
-| File | Purpose |
-|------|---------|
-| `packages/config/tailwind.config.ts` | All color tokens, font families, custom utilities |
-| `packages/config/index.ts` | Re-exports config for consumption by apps |
-| `packages/ui/src/components/` | Vue SFCs: Button, Card, Badge, FormInput, ScriptureCallout, Container, Section |
-| `packages/ui/src/index.ts` | Barrel export of all components |
-| `packages/ui/src/types.ts` | Shared prop type definitions |
-| `packages/ui/vitest.config.ts` | Vitest setup for component tests |
-| `packages/ui/src/components/__tests__/` | Tests for each component |
-| `apps/web/nuxt.config.ts` | Extends `packages/config` Tailwind config |
-| `apps/admin/nuxt.config.ts` | Extends `packages/config` Tailwind config |
-
-### Design tokens
-
-```typescript
-// Colors
-forest:   { 500: '#2d6a4f', 600: '#23553f' }   // Primary
-kootenai: { 500: '#3a7d8c' }                    // Secondary
-gold:     { 500: '#c9962b' }                    // Accent
-charcoal: { 900: '#0a1012' }                    // Dark surface
-stone:    { 50:  '#faf8f5' }                    // Light bg
-
-// Fonts
-display: ['Cinzel', 'serif']        // h1, h2
-body:    ['Lora', 'serif']          // body copy, scripture
-ui:      ['DM Sans', 'sans-serif']  // nav, buttons, labels
-```
-
-### Component classes (utility layer)
-`btn-primary`, `btn-secondary`, `btn-ghost`, `co-card`, `co-card-featured`,  
-`co-container`, `co-section`, `scripture-callout`,  
-`badge-forest`, `badge-kootenai`, `badge-gold`, `form-input`, `form-label`
-
-### First test (TDD anchor)
-
-```typescript
-// packages/ui/src/components/__tests__/Button.test.ts
-import { mount } from '@vue/test-utils'
-import Button from '../Button.vue'
-
-describe('Button', () => {
-  it('renders btn-primary class by default', () => {
-    const wrapper = mount(Button, { props: { variant: 'primary' } })
-    expect(wrapper.classes()).toContain('btn-primary')
-  })
-})
-```
-
-### Done criteria
-- [ ] All component tests pass (`turbo test --filter=@churchos/ui`)
-- [ ] `apps/web` and `apps/admin` can import from `@churchos/ui` and resolve tokens
-- [ ] Dark mode toggle works via `@nuxtjs/color-mode` class strategy
-- [ ] All committed on `feature/phase-1-design-system`
-
----
-
-## Phase 2 — Public Website
-
-**Branch:** `feature/phase-2-public-site`  
-**Goal:** Statically generated public site with homepage, sermons listing, about page, and contact form. Lighthouse ≥ 90 at this stage.
-
-### Pages
-- `/` — Homepage: hero, upcoming events, latest sermon, scripture callout
-- `/sermons` — Sermon listing (static data for now)
-- `/sermons/[slug]` — Individual sermon with audio/video player
-- `/about` — Church story, pastor bio, beliefs
-- `/give` — Giving information + link to online giving
-- `/contact` — Contact form (no backend yet — mailto fallback)
-- `/privacy` — Privacy policy
-- `/404` — Custom not-found page
-
-### Deferred out of this phase
-- `packages/office-info` — service times, address, phone, email as shared config
-- `packages/maps` — pluggable map component (Google Maps embed first)
-
-Neither package exists yet; the values are inlined in `apps/web` for now.
-
-### Done criteria
-- [ ] `nuxt generate` produces static HTML for all routes
-- [ ] All pages render correct title, meta description
-- [ ] Component integration tests pass
-- [ ] Accessibility tests: no missing alt text, correct heading hierarchy
-- [ ] Lighthouse performance ≥ 90 on homepage (≥ 95 target in Phase 12)
-
----
-
-## Phase 3 — Supabase Auth & Database
-
-**Branch:** `feature/phase-3-supabase-auth`  
-**Goal:** Working auth (email/password + magic link), RBAC roles, and database migrations.
-
-### Key decisions
-- Access tokens: **memory only** (Pinia store, never localStorage)
-- Refresh tokens: **HttpOnly cookie** via Supabase SSR helpers
-- JWT verified server-side on every protected FastAPI endpoint
-- RLS enabled on every table from day one
-
-### RBAC roles
-`superadmin` → `admin` → `staff` → `member` → `guest`
-
-### Core tables (Alembic migrations)
-- `profiles` — extends `auth.users`, stores role, church_id, display_name
-- `churches` — church registry for multi-church (church_id, slug, name, config)
-- `sermons` — sermon content
-- `events` — calendar events
-
-### Done criteria
-- [ ] Login/logout flow works end-to-end
-- [ ] JWT middleware rejects unauthenticated requests to protected routes
-- [ ] RLS policies tested with each role
-- [ ] Alembic migrations run cleanly (`alembic upgrade head`)
-
----
-
-## Phase 4 — Admin Dashboard
-
-**Branch:** `feature/phase-4-admin-dashboard`  
-**Goal:** Authenticated staff interface for managing sermons and events.
-
-### Features
-- Sermon CRUD (create, edit, publish, archive)
-- Event CRUD
-- Basic media upload to Backblaze B2
-- Role-gated: `staff` minimum
-
-### Done criteria
-- [ ] All CRUD operations tested (API + UI)
-- [ ] Role gate enforced — guests/members redirected
-- [ ] File uploads stored in B2, URLs persisted in DB
-
----
-
-## Phase 5 — Prayer Board
-
-**Branch:** `feature/phase-5-prayer-board`  
-**Goal:** Public prayer request submission with AI moderation and Redis rate limiting.
-
-### Flow
-1. Visitor submits prayer request (no auth required)
-2. Redis rate limit checked — **3 submissions / IP / hour** (Upstash Redis)
-3. AI moderates content → `approved` or `rejected` (Grok today; Gloo → Grok →
-   fail-open after Phase 7)
-4. Request stored with `status` field; submitter always receives 201 (dignity-preserving)
-5. Approved requests visible to **members+** (not fully public — requires auth)
-6. Staff can view pending/rejected queue at `GET /prayer-requests/pending`
-7. Staff approves or rejects via `PATCH /prayer-requests/{id}`
-
-### API endpoints
-| Method | Path | Auth | Purpose |
-|--------|------|------|---------|
-| POST | `/prayer-requests` | none | Submit (rate-limited, AI-moderated) |
-| GET | `/prayer-requests` | member+ | Approved list |
-| GET | `/prayer-requests/pending` | staff+ | Moderation queue |
-| PATCH | `/prayer-requests/{id}` | staff+ | Approve or reject |
-
-### Key implementation files
-- `apps/api/tests/test_prayer_requests.py` — 20 tests (written first)
-- `apps/api/alembic/versions/d4e5f6a7b8c9_create_prayer_requests_table.py`
-- `apps/api/app/schemas/prayer_request.py` — PrayerRequestCreate / Read / Moderate
-- `apps/api/app/crud/prayer_requests.py` — Supabase CRUD
-- `apps/api/app/dependencies/rate_limit.py` — `_redis_incr` + `check_rate_limit`
-- `apps/api/app/dependencies/ai_moderation.py` — `moderate_prayer_request`
-- `apps/api/app/routers/prayer_requests.py`
-
-### Required env vars (new in Phase 5)
-```bash
-UPSTASH_REDIS_URL=rediss://...upstash.io:6380
-UPSTASH_REDIS_TOKEN=...
-GROK_API_KEY=...          # Anthropic was swapped for xAI Grok in 5f50ca5
-```
-
-### Done criteria
-- [x] 20 API tests written first (TDD) and passing
-- [x] Rate limiting dependency implemented (patchable _redis_incr)
-- [x] AI moderation dependency implemented (patchable, fail-open)
-- [x] Alembic migration created for prayer_requests table
-- [ ] Alembic migration applied in Supabase (`alembic upgrade head` or manual stamp)
-- [ ] Railway env vars set: UPSTASH_REDIS_URL, UPSTASH_REDIS_TOKEN, ANTHROPIC_API_KEY
-- [ ] Public submission form added to apps/web
-- [ ] Admin moderation queue page added to apps/admin
-- [ ] Feature branch merged → dev → staging → main
-
----
-
-## Phase 5b — Prayer Board Completion
-
-**Branch:** `feature/phase-5b-prayer-completion`  
-**Goal:** Complete the prayer board experience — public board, email notifications, updates, and answered tracking.
-
-### Features
-- `site_config` admin settings page — stores `prayer_chain_email` and future connector settings; encrypted at rest
-- Email notification on submission → `prayer_chain_email` via configured email connector (SMTP by default)
-- Public approved prayer board on `apps/web` — visible without login (approved only)
-- Staff can post updates on a prayer request (new `prayer_updates` table)
-- Staff can mark a request as answered (`is_answered = true`) from the admin queue
-- Historical archive view (answered/closed requests) in admin
-- Member can mark a prayer as prayed for (`prayer_count` increment)
-
-### New tables
-- `public.prayer_updates` — UUID PK, prayer_request_id FK, body TEXT, created_by UUID, created_at
-
-### Done criteria
-- [ ] `prayer_chain_email` configurable in admin settings, stored in `site_config`
-- [ ] Email sent on approved submission
-- [ ] Public prayer board page on apps/web
-- [ ] Staff can add updates to a request
-- [ ] Staff can mark request as answered
-- [ ] Answered requests visible in historical archive
-
----
-
-## Phase 6 — Connector Framework
-
-**Branch:** `feature/phase-6-connectors`  
-**Goal:** A plugin-style connector system where each integration category has a built-in default and optional third-party providers. Churches with no external accounts get a fully functional CMS out of the box.
-
-### Connector categories
-
-| Category | Built-in (default) | Third-party options |
+| Version | Codename | Delivered by |
 |---|---|---|
-| Email | SMTP relay (any provider) | MS365 Graph, Google Gmail |
-| Calendar | ChurchOS `church_events` table | Outlook, Google Calendar, iCal |
-| Documents | ChurchOS `pages` table | Google Docs, MS365, OnlyOffice, Nextcloud |
-| Storage | Backblaze B2 | Google Drive, OneDrive, S3 |
-| Auth | Email + magic link (Supabase) | Microsoft Entra, Google OAuth, Apple |
+| 0.1.0 – 0.3.x | — (pre-release) | Phases 1–3 (not public; the old site stays live) |
+| **1.0.0** | **Kootenai** | Phase 4 — the cutover that replaces libbynaz.org |
+| 1.1.0 | Cabinet | Phase 5 — Prayer board |
+| 1.2.0 | Fisher | Phase 6 — Scheduled tasks + Sermons |
+| 1.3.0 | Quartz | Phase 7 — Events |
+| 1.4.0+ | TBD (suggestions: Purcell, Koocanusa, Libby Creek, Kootenai Falls) | Phases 8+ |
+| 2.0.0 | Yaak | Reserved for the first breaking change |
 
-### Architecture
-- Each connector category defines a standard Python interface (e.g., `send_email(to, subject, body)`)
-- The active connector for each category is set in `site_config` and read at runtime
-- Swapping connectors requires only a config change — no code changes
-- Admin settings UI has a "Connectors" page with setup instructions per provider
-
-### Admin settings UI
-- Connector selection per category (dropdown)
-- Provider-specific config fields (API keys, tenant IDs, etc.) — stored encrypted in `site_config`
-- Test button per connector (sends test email, creates test calendar event, etc.)
-
-### Phase 6 deliverables
-- Connector interface definitions (Python ABCs for API, TypeScript interfaces for frontend)
-- Built-in connectors: SMTP email, ChurchOS calendar, ChurchOS pages, Backblaze B2
-- MS365 connectors: Graph API email, Outlook calendar sync (two-way)
-- Admin settings UI: Connectors page
-- `site_config` table with encrypted connector settings
-
-### Done criteria
-- [x] Connector interfaces defined and documented (EmailConnector ABC)
-- [x] SMTP email connector working (replaces hardcoded import in prayer router)
-- [x] MS365 email connector via Graph API (OAuth2 client credentials)
-- [ ] Outlook two-way calendar sync (events ↔ church_events) — Phase 11
-- [x] Admin settings page — Connectors section (provider dropdown + MS365 fields)
-- [x] All connectors tested with mock providers (14 tests)
+`version.json` is the single source. The site footer, admin badge and `GET /api/health`
+read it at build or run time. They never hardcode it, which was a defect in the archived build.
 
 ---
 
-## Phase 7 — Gloo AI Integration
+## 3. Module system
 
-**Branch:** `feature/phase-7-gloo-ai`  
-**Goal:** Gloo AI as primary faith-context provider with Grok as fallback. Plugs into the connector framework from Phase 6.
+A **module** is a self-contained feature bundle:
 
-### Config (via admin settings UI)
-- Gloo client ID, client secret, tradition setting
-- Grok API key (fallback)
-- Provider chain: Gloo → Grok → fail-open
+| Part | Example (Sermons) |
+|---|---|
+| Domain objects (in DOMAIN-MODEL.md) | `Sermon`, `SermonSeries` |
+| Storage (migrations) | `sermons`, `sermon_series` tables |
+| API routes | `GET /api/sermons`, `PATCH /api/admin/sermons/{id}` |
+| Admin screens | Sermon list, edit, sync status |
+| Public pages / blocks | `/sermons`, `/sermons/{slug}`, "Latest sermon" block |
+| Settings (typed, validated) | source = `logos`, channel ID = `13608627`, sync schedule |
+| Permissions | who may view and edit, by role |
+| Scheduled task types | `sermons.sync` |
 
-### Deferred to a later phase
-- **Gloo Grounded Completions** — RAG over publisher content, requires a
-  `gloo_publisher` setting alongside the existing credentials
-- **"Ask Our Church" chatbot** — `POST /api/v1/ask`, grounded in the church's own
-  content. Stub it as `501 Not Implemented` until there is content to ground on.
-
-### Done criteria
-- [ ] Gloo API called for primary moderation via AI connector interface
-- [ ] Fallback to Grok on Gloo error
-- [ ] Both providers tested with fixture responses
-- [ ] Configurable via admin settings UI (no env var required)
-
----
-
-## Phase 8 — Giving Module
-
-**Branch:** `feature/phase-8-giving`  
-**Goal:** Stripe-powered giving with zero card data on our servers. (Renumbered from Phase 7.)
-
-### Rules (non-negotiable)
-- Stripe.js handles all card input in the browser
-- Our API only sees Stripe payment intents / events
-- Webhook endpoint validates the Stripe signature
-- No bulk export of giving records
-- Members can only ever see their own giving history
-- No card data in API logs or responses
-
-### Surfaces
-- Public giving page (Stripe.js card element)
-- `/admin/giving` — totals by fund, recent transactions
-- Member-facing giving history for the signed-in member
-
-### Done criteria
-- [ ] Stripe webhook endpoint tested with Stripe CLI
-- [ ] Successful and failed payments handled
-- [ ] Signature validation rejects forged webhooks
-- [ ] Admin can see giving summary (not bulk export)
-- [ ] A member sees their own history and no one else's
+- Modules ship **inside this repo**. They are switched on per deployment, not
+  installed from a marketplace. That avoids the security risk of third-party
+  plugins and keeps this simpler than Drupal.
+- **System modules** are always on (users & roles, site settings, scheduled tasks).
+  **Feature modules** can be toggled (prayer, sermons, events, …).
+- The module manifest and settings are domain objects (DOMAIN-MODEL §5), so every
+  backend implements them the same way.
 
 ---
 
-## Phase 9 — Member Directory
+## 4. How every phase runs
 
-**Branch:** `feature/phase-9-directory`  
-**Goal:** Opt-in member directory, PII encrypted at rest. (Renumbered from Phase 8.)
+The rules live in [CLAUDE.md → Workflow](CLAUDE.md#workflow-non-negotiable). The sequence:
 
-### Rules
-- Member role minimum — never public
-- PII encrypted AES-256, column-level
-- No bulk export endpoint
-- Consent required before listing
-- Every directory access writes an audit log entry
-- Per-field visibility flags (`show_email`, `show_phone`, `show_address`) that
-  the member controls from their own profile editor
-
-### Done criteria
-- [ ] Directory only accessible with `member` JWT
-- [ ] PII columns encrypted in DB, decrypted in service layer
-- [ ] No unauthenticated route returns directory data
-- [ ] Responses respect each member's `show_*` flags
-- [ ] Audit log written on every directory read
+1. **Plan review.** The phase section below is expanded into a detailed plan
+   (domain objects, endpoints, screens, tests, dependencies) and presented for review.
+2. **Docs first.** Agreed changes are applied to PLAN.md, DOMAIN-MODEL.md and the
+   contract schemas, then merged.
+3. **Branch + failing tests.** `feature/phase-N-*` is created. Tests (unit, contract,
+   end-to-end) are shown, explained, approved, written, and committed failing.
+4. **Build in reviewed steps.** Each piece of code is shown and explained before it is
+   written, then made to pass its tests.
+5. **CI green → `dev`.**
+6. **Release to test** on the next release. You verify in the UI on test.libbynaz.org.
+7. **Release to prod.** Tag, update CHANGELOG, mark the phase ✅.
 
 ---
 
-## Phase 10 — Auth Providers
+## 5. Phase index
 
-**Branch:** `feature/phase-10-auth-providers`  
-**Goal:** Add Microsoft and Google OAuth as configurable login providers via Supabase Auth. Map external groups to ChurchOS roles.
+| # | Phase | Version | Status |
+|---|---|---|---|
+| 0 | Archive & re-plan | — | 🔄 in progress |
+| 1 | Foundation: tooling, CI/CD, hosting | 0.1.0 | 🔲 |
+| 2 | Design system (theme restoration) | 0.2.0 | 🔲 |
+| 3 | Core platform: auth, users, settings, modules | 0.3.0 | 🔲 |
+| 4 | Site content & cutover | **1.0.0 Kootenai** | 🔲 |
+| 5 | Prayer board module | 1.1.0 Cabinet | 🔲 |
+| 6 | Scheduled tasks + Sermons module | 1.2.0 Fisher | 🔲 |
+| 7 | Events module | 1.3.0 Quartz | 🔲 |
+| 8 | Giving module | 1.4.0 | 🔲 |
+| 9 | Member directory module | 1.5.0 | 🔲 |
+| 10 | External login providers | 1.6.0 | 🔲 |
+| 11 | Integrations | 1.7.0 | 🔲 |
+| 12 | Portability & second backend | 1.8.0 | 🔲 |
 
-### Architecture
-Supabase Auth is the consistent auth layer regardless of provider. The OAuth flow is always:
-> Login button → Supabase validates → JWT issued → ChurchOS roles applied
-
-Per-deployment, admins configure which providers are enabled via the admin settings UI.
-
-### Features
-- Microsoft Entra ID (Azure AD) — OAuth2/OIDC via Supabase
-- Google OAuth — via Supabase
-- Apple Sign In — via Supabase
-- Group → role mapping: MS groups or Google Workspace groups → ChurchOS roles (staff, admin, etc.)
-- Admin settings: enable/disable providers, configure client ID/secret
-
-### Done criteria
-- [ ] Microsoft login working via Supabase OAuth
-- [ ] Google login working via Supabase OAuth
-- [ ] Group membership read from provider → role assigned in profiles table
-- [ ] Admin settings UI — Auth Providers section
-- [ ] Existing email/magic link auth still works alongside OAuth providers
+Phases 6 and 7 may swap if a temporary sermon embed (Phase 4) covers sermons long
+enough. Phases 8–12 are outlines and will be planned in detail when they come up.
 
 ---
 
-## Phase 11 — Advanced Connectors
+## Phase 0 — Archive & re-plan
 
-**Branch:** `feature/phase-11-advanced-connectors`  
-**Goal:** Expand the connector framework (Phase 6) with Google Workspace, OnlyOffice, Nextcloud, and Zoho integrations.
+**Goal:** Preserve the FastAPI build and agree the new plan before any code.
 
-### Connectors
-- **Google Workspace** — Gmail (email), Google Calendar (two-way sync), Google Drive (storage), Google Docs (documents)
-- **OnlyOffice** — document editing and real-time collaboration
-- **Nextcloud** — self-hosted open-source option (calendar, storage, documents)
-- **Zoho** — popular with nonprofits; email, calendar, CRM
-- **iCal** — read-only calendar import from any iCal-compatible source
-
-### Done criteria
-- [ ] Google Workspace email + calendar connector
-- [ ] OnlyOffice document connector
-- [ ] Nextcloud connector
-- [ ] All connectors selectable from admin settings UI
-- [ ] Each connector has setup documentation with step-by-step instructions
+- [x] Push all unpushed branches; tag `archive/fastapi-0.x` at `main` (2026-10-07)
+- [ ] Owner reviews and approves PLAN.md, CLAUDE.md, DOMAIN-MODEL.md drafts
+- [ ] Decisions D1–D9 resolved and recorded in §Decisions
+- [ ] `docs/replan` merged to `dev`
 
 ---
 
-## Phase 12 — Portability & Polish
+## Phase 1 — Foundation: tooling, CI/CD, hosting → 0.1.0
 
-**Branch:** `feature/phase-12-hardening`  
-**Goal:** Production-ready and easy for any church to self-host. Lighthouse ≥ 95, security audit, full documentation.
+**Goal:** An empty but real system deployed to test and prod by CI, which proves
+every pipe end to end: `GET /api/health` answers on libbynaz.org from Laravel via
+the PHP core, and an `/admin` placeholder reads it.
 
-### Portability
-- `.env.example` fully documented for every required account and key
-- Setup guide: step-by-step from GitHub clone → live deployment
-  (`docs/new-church-setup.md`)
-- Design tokens (colors, fonts, logo) configurable per church via CSS custom
-  properties / `site_config` without code changes
-- Retire the unused `packages/config/tailwind.config.ts` stub so `tokens.css` is
-  unambiguously the only token source
-- One-click Railway deploy button in README
+**Repo**
+- Clear the FastAPI-era app code from the working tree (it stays in the archive tag — ⚖ D5)
+- Scaffold the target layout (§2): pnpm + Turborepo + Composer workspaces
+- Formatters, linters and static analysis per language (CLAUDE.md → Coding standards); CI fails on violations
+- `version.json` read at build/run time by every app
 
-### Hardening
-- Lighthouse ≥ 95 (performance, accessibility, best practices, SEO)
-- Core Web Vitals passing; API response time < 200ms at P95
-- Sentry error tracking in all apps
-- Uptime monitoring (free tier)
-- Security audit: OWASP Top 10 pass; review every RLS policy
-- `pip-audit` and `pnpm audit` clean; penetration test the auth endpoints
-- RLS policies on all remaining unprotected tables
-- Wire `apps/web` to the live API (it still renders mock sermon/event data)
-- Fix the root `pnpm type-check` / `pnpm test` tasks so they do not need the
-  `--filter=!@churchos/api` workaround
-- VitePress documentation: setup, deployment, connector configuration, contributing
+**Contract & core**
+- `libs/shared/contract`: schemas for the operational objects (Envelope, ErrorEnvelope, HealthStatus, VersionInfo)
+- `libs/php/churchos-core`: those objects + `HealthService` port, pure PHP, unit-tested
+- `libs/ts/churchos-core`: types generated from the schemas, API client with timeout + error handling
 
-### Done criteria
-- [ ] A new church can go from GitHub clone to live site following only the docs
-- [ ] Lighthouse ≥ 95 on all public pages
-- [ ] Security audit passed
-- [ ] Version `1.0.0` ("Kootenai") tagged, released, and written up in CHANGELOG.md
+**Apps**
+- `apps/api-laravel`: `GET /api/health` via the core; MariaDB connection check
+- `apps/admin`: placeholder page showing version + API health (proves admin → API wiring)
+- `apps/web`: placeholder, built but **not** deployed to `/` (the old site stays live)
 
----
+**Testing**
+- PHPUnit for PHP, Vitest for TS
+- Contract suite: validates real HTTP responses from a running API against the schemas
+- End-to-end harness: a browser test opens the real admin, against the real API and a real MariaDB (⚖ D6 tool choice)
 
-## Security requirements
+**CI/CD**
+- CI on PRs: lint · static analysis · unit · contract · e2e, with PHP 8.4 + MariaDB 11.4 service containers to mirror the host
+- Deploy workflows: `staging` → test.libbynaz.org, `main` → libbynaz.org (`/api`, `/admin` only)
+- Atomic release + migrate + health check + automatic rollback
 
-Always active, every phase. Canonical list lives in
-[CLAUDE.md → Security requirements](CLAUDE.md#security-requirements-always-enforce).
+**Hosting (done with you, documented as a runbook)**
+- Switch PHP to 8.4 and confirm extensions (incl. `tokenizer`, `xml`, `xmlwriter`, `zip`)
+- Create `test.libbynaz.org`, the two databases (utf8mb4), and a deploy SSH key
+- Add the cron entry; set server-side `.env` files (never in git)
 
----
-
-## Environment variables
-
-Canonical, per-app, with the real variable names:
-[CLAUDE.md → Environment variables](CLAUDE.md#environment-variables), backed by
-each app's `.env.example`. Do not maintain a second list here — the copy that
-used to live in this file had drifted out of sync with `app/config.py`.
+**Done when**
+- [ ] CI green on a PR, with every job required
+- [ ] Merge to `staging` deploys test automatically; `https://test.libbynaz.org/api/health` returns 0.1.0
+- [ ] Merge to `main` deploys prod; `https://libbynaz.org/api/health` returns 0.1.0, and the existing site is untouched
+- [ ] A failed health check after deploy rolls back automatically (demonstrated once on test)
+- [ ] Hosting runbook in `docs/` lets someone repeat the setup
 
 ---
 
-## Versioning
+## Phase 2 — Design system (theme restoration) → 0.2.0
 
-Semantic versioning. Current: `0.1.0` pre-release.
-Release `1.0.0` is named **"Kootenai"**; the codename ladder and bump rules are
-in [CLAUDE.md → Versioning](CLAUDE.md#versioning).
-Version is visible in: `version.json` · site footer · admin topbar badge ·
-`GET /health` response.
+**Goal:** Restore the original Kootenai theme, make contrast failures impossible to
+merge, and give both apps the shared look.
+
+- **Drift analysis first.** Compare the original palette
+  (`churchos-v7-archive/packages/config/tailwind.config.ts`: full 50–950 scales, a
+  teal-tinted charcoal, stone-100 background) with the archived `tokens.css` (charcoal
+  50–600 and stone 300–950 dropped; charcoal-700 and stone-100 shifted). Present
+  findings and a proposed palette for approval.
+- `libs/ts/theme`: tokens + **semantic** tokens (`surface`, `surface-raised`,
+  `text`, `text-muted`, `card-header-bg`, `card-header-text`, …) for light and dark.
+  Components use semantic tokens only.
+- **Contrast gate in CI:** every approved foreground/background pair is checked
+  against WCAG AA (4.5:1 body text, 3:1 large text and UI). Plus accessibility checks
+  on rendered pages in the e2e suite.
+- `libs/ts/ui`: Vue components (button, card, badge, form controls, scripture
+  callout, container, section), each tested
+- Fonts: Cinzel / Lora / DM Sans. Self-hosted vs Google Fonts is a privacy and
+  performance decision to make at plan review.
+- `/design` reference page (noindex); admin shell layout (sidebar, topbar, version badge)
+
+**Done when:** the contrast gate passes in light and dark mode; `/design` and the admin
+shell are verified on test and live on prod (`/admin`, `/design` only).
+
+---
+
+## Phase 3 — Core platform → 0.3.0
+
+**Goal:** Everything modules depend on: login, users, roles, site settings, the
+module registry, and an audit trail. All of it manageable in the admin.
+
+- Auth: Laravel's first-party cookie-based SPA auth (Sanctum, ⚖ D7). Session in an
+  HttpOnly cookie, CSRF-protected; no tokens in JS-readable storage.
+- Passwords hashed with PHP's native `password_hash` (Argon2id where available);
+  login throttling; password reset and email verification
+- Two-factor sign-in (authenticator-app codes) required for staff and above (⚖ D9)
+- Roles `superadmin → admin → staff → member → guest`. The authorization rules live in
+  the PHP core; Laravel policies only call them. Enforced in the API.
+- Admin: sign in/out, password reset (email), user list, invite user, change role,
+  disable user
+- Site settings (church name, timezone `America/Denver`, contact info, service times,
+  social links) — typed, validated, editable in the admin
+- Module registry: list modules, enable/disable, edit module settings (schema-driven
+  forms); secret settings encrypted at rest and never returned to the browser
+- Audit log: who changed what, when; viewable by admins
+- Email: Laravel mail over the host's SMTP, for password reset and invites
+
+**Done when:** you can sign in to `libbynaz.org/admin`, invite a staff user, change
+site settings, and see each action in the audit log, all verified on test first.
+Role checks are covered by e2e tests against the real API.
+
+---
+
+## Phase 4 — Site content & cutover → 1.0.0 "Kootenai"
+
+**Goal:** The new ChurchOS site replaces the current libbynaz.org, with everything on
+it editable in the admin and the restored theme applied.
+
+- **Inventory first:** list every page, section and asset on the current site, and
+  agree what moves over. (The current site renders client-side, so this is done in a
+  browser together.)
+- Pages module: pages made of ordered **content blocks** (rich text, hero, image,
+  call-to-action, service times, contact, embed, scripture). Draft/publish. SEO title
+  and description per page.
+- Navigation and footer managed in the admin
+- **Temporary sermons:** a Logos embed block configured with the channel ID
+  (`13608627`). New functionality; replaced in Phase 6.
+- Contact form → email to a configured address (rate-limited)
+- 404 page, sitemap, robots.txt, redirects from any old URLs
+- Static generation: the public site rebuilds and redeploys when content is published
+  (⚖ D8 — how a publish triggers a rebuild on shared hosting)
+- Lighthouse check in CI (target ≥ 90 now, ≥ 95 by Phase 12)
+
+**Cutover:** verify everything on test.libbynaz.org → release to prod (`/` switches to
+the new site) → keep the old site's files for a quick rollback for one release.
+
+**Done when:** libbynaz.org serves ChurchOS; every page is editable in the admin; the
+old site's files are retired after one stable release.
+
+---
+
+## Phase 5 — Prayer board module → 1.1.0 "Cabinet"
+
+**Goal:** Visitors submit prayer requests; nothing becomes public without staff approval.
+
+- Submission form (public), rate-limited per real client IP, with spam protection
+  (honeypot field + timing check — native, no third-party service)
+- Every submission is stored as **`pending`**. Optional AI pre-screen only *labels*
+  submissions for staff (provider pluggable, off by default); it never publishes.
+- Admin queue: approve, reject (with private reason), edit for privacy before
+  publishing, mark answered, post updates
+- Public board (approved only; never email or moderation data) and optional
+  members-only view
+- Prayer-chain email on approval (configurable list)
+- Expiry / archive of old requests (uses Phase 6 scheduler if it exists; otherwise
+  on-read filtering)
+- Submitter always sees the same confirmation, whatever happens to the request
+
+**Done when:** a request submitted on test appears in the admin queue, is approved,
+reaches the public board and the prayer-chain email. Proven by an e2e test against the
+real stack, then on prod.
+
+---
+
+## Phase 6 — Scheduled tasks + Sermons module → 1.2.0 "Fisher"
+
+### 6a. Scheduled tasks (system module)
+
+**Goal:** Admins schedule recurring jobs in plain language; modules register the jobs.
+
+- **Heartbeat vs schedule:** the single cPanel cron entry ticks every minute. That is
+  only the heartbeat. Each task's own schedule decides whether it runs on a tick.
+- Recurrence options (stored as data, defined in DOMAIN-MODEL):
+  every N minutes/hours/days/weeks · N times per day/week · specific weekdays at a
+  time (e.g. every Monday 18:00, weekdays 16:00) · monthly · advanced cron expression
+- Ends: never · after N runs · on a date
+- Retry policy: max attempts + back-off. Overlap protection (a task never runs twice at once).
+- Times entered in the church's timezone and stored in UTC
+- Admin: list tasks, enable/disable, edit schedule with a human-readable preview
+  ("Every weekday at 4:00 PM — next run Tue Oct 13, 4:00 PM"), **Run now**, run
+  history with status and messages
+- Recurrence logic lives in the PHP core (pure, heavily unit-tested); Laravel only
+  provides the heartbeat command and storage
+
+### 6b. Sermons module
+
+**Goal:** Sermons from Logos appear on the site with full detail, replacing the
+Phase 4 embed. The Sermon model will be revisited at plan review.
+
+- Source adapter (PHP core): Logos RSS feed
+  `https://sermons.logos.com/api/channels/13608627/feed` → domain `Sermon`
+  (title, description, date, audio, duration, link)
+- Enrichment adapter: each sermon's public page provides the cover image, speaker,
+  series, passage, and possibly transcript/video. **Undocumented and fragile:** it must
+  fail soft and never block the feed import.
+- Admin edits (speaker, series, passage, cover) are never overwritten by a sync
+- Sync task `sermons.sync` with a default schedule (e.g. Sundays + Mondays); configurable
+- Public: sermon list with search and series filter, sermon detail with audio player
+  (and video/transcript if available), "Latest sermon" block for pages
+- Sermon dates are calendar dates (the feed's midnight-GMT timestamps would otherwise show the previous day in Montana)
+
+**Done when:** the sync runs on schedule on prod, the embed is retired, and admin
+overrides survive a re-sync (tested).
+
+---
+
+## Phase 7 — Events module → 1.3.0 "Quartz"
+
+- Events with date/time (timezone-aware), location, description, image, recurring events
+  (reusing the Phase 6 recurrence model)
+- Admin CRUD; public calendar/list and detail pages; "Upcoming events" block
+- iCal feed export (subscribe from phone calendars)
+
+---
+
+## Phases 8–12 — outline
+
+| # | Phase | Notes carried over |
+|---|---|---|
+| 8 | **Giving** | Stripe.js holds all card input; webhook signature verified; members see only their own history; no bulk export. Settings via module config. |
+| 9 | **Member directory** | Member role minimum, never public; consent before listing; per-field visibility; personal data encrypted at rest (column-level); every read audited; no bulk export. |
+| 10 | **External login providers** | Microsoft, Google, Apple via Laravel's first-party OAuth package (Socialite — dependency approval); group → role mapping. |
+| 11 | **Integrations** | Email providers (MS365 Graph, Gmail), calendar sync (Google/Outlook), AI moderation providers (Gloo, Grok), storage (B2/S3). Each one is a source/sink adapter behind a core port. |
+| 12 | **Portability & second backend** | New-church setup guide and installer; Lighthouse ≥ 95; security review; restore FastAPI as `apps/api-fastapi` + `libs/python/churchos-core`, passing the same contract suite. |
+
+---
+
+## Lessons carried over from the archived build
+
+These are the failure modes the new workflow is designed to prevent:
+
+| What happened | Prevented by |
+|---|---|
+| Admin app never reached the API; unit tests passed because every `$fetch` was mocked | E2E tests against the real stack are a done criterion for every phase |
+| Prayer requests auto-published when AI moderation was unavailable | Pending-first design; AI can only label |
+| Phases marked ✅ with unchecked done criteria | "Done means live", and the checklist is reviewed at release |
+| Docs described intended behaviour, not actual behaviour | Docs change first at plan review, and the e2e tests prove the behaviour |
+| Theme drift and unreadable card headers | Semantic tokens + CI contrast gate |
+| Migrations applied by hand; a migration silently never applied | Deploy pipeline runs migrations and health-checks every release |
+| Version hardcoded in footer/badge, never bumped | Read from `version.json`; bumped as part of the release PR |
+| Unmerged fixes and local-only branches | Release checklist includes "no orphan branches" |
+
+---
+
+## Decisions
+
+Proposed defaults. Each needs your ✅ or a change before the phase that uses it.
+
+| # | Decision | Proposed | Needed by |
+|---|---|---|---|
+| D1 | Repo layout | `apps/` + `libs/<lang>/` as in §2 | Phase 1 |
+| D2 | URL layout | One domain per env: `/`, `/admin`, `/api` | Phase 1 |
+| D3 | Release cadence | Every two weeks | Phase 1 |
+| D4 | Version map | 0.x pre-cutover; **1.0.0 Kootenai = cutover**; one codename per module release | Phase 1 |
+| D5 | FastAPI code in the working tree | Remove (kept in archive tag) rather than leave unmaintained | Phase 1 |
+| D6 | E2E browser test tool | Playwright (dependency approval) | Phase 1 |
+| D7 | Auth | Laravel Sanctum cookie-based SPA auth (first-party) | Phase 3 |
+| D8 | Rebuild the static site on publish | Admin publish → API queues a rebuild → GitHub Actions builds and deploys (needs a scoped GitHub token on the server) vs. render public pages at runtime from the API | Phase 4 |
+| D9 | Two-factor sign-in | Required for staff and above; optional for members | Phase 3 |
