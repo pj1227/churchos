@@ -88,10 +88,10 @@ and the schemas change in the same PR.
 | Layer | Lives in | Contains | May depend on |
 |---|---|---|---|
 | **Specification** | this doc + `libs/shared/contract` | Prose spec, JSON Schemas, OpenAPI | nothing |
-| **Core library** | `libs/<lang>/churchos-core` | Domain objects, ports (interfaces), services (business rules), source adapters, serializer | spec only (no framework) |
-| **Framework adapter** | `apps/api-laravel` (later `apps/api-fastapi`) | Routing, HTTP, auth wiring, migrations, repository implementations of core ports, scheduler heartbeat. **No business rules.** | core library |
-| **Client library** | `libs/ts/churchos-core` | Generated types, API client (timeout, errors, `FetchResult`) | transport objects |
-| **Presentation** | `libs/ts/ui`, `apps/web`, `apps/admin` | Components and pages using the shared theme | client library |
+| **Core library** | `libs/<lang>/native/core` | Domain objects, ports (interfaces), services (business rules), source adapters, serializer | spec only (no framework) |
+| **Framework adapter** | `apps/api/laravel` (later `apps/api/fastapi`) | Routing, HTTP, auth wiring, migrations, repository implementations of core ports, scheduler heartbeat. **No business rules.** | core library |
+| **Client library** | `libs/ts/native/core` | Generated types, API client (timeout, errors, `FetchResult`) | transport objects |
+| **Presentation** | `libs/ts/vue/ui`, `apps/web/nuxt`, `apps/admin/nuxt` | Components and pages using the shared theme | client library |
 
 ### 3.1 The three shapes of the same data
 
@@ -252,6 +252,20 @@ Modules declare their settings in a **manifest** in code; storage holds only val
 | `subjectId` | `String?` | |
 | `details` | `Map<String, any>` | Never contains secrets or full personal data |
 
+### 5.6 Help, release notes & tours (Phase 3) *(outline)*
+
+- `HelpArticle`: slug, title, audience `Enum{public|member|staff|admin}`, moduleKey?,
+  screenKeys `List<Key>` (the screens whose "Help" link opens it), body `RichText`,
+  sinceVersion, updatedInVersion. Source shape: a Markdown file in `docs/help/` with
+  front-matter; loaded into storage on deploy.
+- `ReleaseNote`: version, codename?, releasedOn `LocalDate`, items `List<ReleaseNoteItem>`
+- `ReleaseNoteItem`: title, summary, audience, moduleKey?, helpArticleSlug?, tourKey?
+- `ReleaseNoteDismissal`: userId, version, dismissedAt. Hides the dashboard banner
+  for that user and release only.
+- `Tour`: key, title, audience, moduleKey?, steps `List<TourStep>`
+- `TourStep`: anchor `Key` (a stable `data-tour` id on a UI element, never a CSS
+  selector), screenKey, title, body. Invariant: tours start only from a user action.
+
 ---
 
 ## 6. Module domains
@@ -306,6 +320,17 @@ externalId, url).
 
 `Event` with `LocalDate`/`LocalTime` + `TimeZone`, location, optional recurrence
 (reuses §6.3 `Recurrence`).
+
+### 6.6 Knowledge sources for the AI help assistant (Phase 11) *(outline)*
+
+- `KnowledgeSource`: id, kind `Enum{helpArticles|siteContent|sermonTranscripts|url}`,
+  label, url `Url?` (required for `url`), enabled, refresh `Schedule?`, lastIndexedAt?,
+  status `Enum{ok|failed|pending}`
+- `AssistantAnswer`: text, citations `List<Citation>` (never empty unless
+  `outOfScope = true`), outOfScope `Boolean`
+- `Citation`: title, url, sourceId
+- Invariant: answers are generated only from passages retrieved from enabled sources
+  in our own index. No live web access, no personal data.
 
 ---
 
@@ -362,4 +387,4 @@ An implementation conforms when:
 
 | Version | Date | Change |
 |---|---|---|
-| 0.1 *(draft)* | 2026-10-07 | Notation, universal rules, operational objects, core platform objects; module outlines |
+| 0.1 *(draft)* | 2026-10-07 | Notation, universal rules, operational objects, core platform objects; module outlines. 2026-10-08: nested repo paths; help, release notes, tours and knowledge-source outlines |

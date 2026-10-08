@@ -67,7 +67,11 @@ change "looks small".
 11. **Docs move with code.** Any change to behaviour, schema, commands or env vars
     updates the relevant doc and `CHANGELOG.md` (`## [Unreleased]`) in the same PR.
     Docs describe what the code *does*, not what it is meant to do.
-12. **Commit often** on the feature branch: one working, tested unit per commit.
+12. **Help ships with the feature** (from Phase 3 on). Every user-facing change adds
+    or updates its help article in `docs/help/`, adds an entry to that release's
+    release notes, and, when a task has several steps, a "Show me how" guided tour.
+    Tours only start when someone clicks them. No "new" badges.
+13. **Commit often** on the feature branch: one working, tested unit per commit.
 
 ---
 
@@ -80,11 +84,11 @@ enforce this in CI; nothing is formatted by hand.
 
 | Layer | Standard | Enforced by (pending approval) |
 |---|---|---|
-| Plain PHP (`libs/php/*`) | PSR-4 autoloading, **PER Coding Style 2.0**, strict types, `final readonly` value objects | Pint (`per` preset), PHPStan (max level) |
-| Laravel (`apps/api-laravel`) | Laravel conventions (e.g. Eloquent attributes are `snake_case` column names, while plain PHP properties are `camelCase`) | Pint (`laravel` preset), PHPStan + Larastan |
-| Plain TypeScript (`libs/ts/churchos-core`) | `strict` tsconfig, ESM, no framework imports | ESLint (typescript-eslint), Prettier |
-| Vue (`libs/ts/ui`) | Official Vue style guide (priority A–C), `<script setup lang="ts">` | eslint-plugin-vue |
-| Nuxt (`apps/web`, `apps/admin`) | Nuxt directory and auto-import conventions | @nuxt/eslint |
+| Plain PHP (`libs/php/native/*`) | PSR-4 autoloading, **PER Coding Style 2.0**, strict types, `final readonly` value objects | Pint (`per` preset), PHPStan (max level) |
+| Laravel (`apps/api/laravel`) | Laravel conventions (e.g. Eloquent attributes are `snake_case` column names, while plain PHP properties are `camelCase`) | Pint (`laravel` preset), PHPStan + Larastan |
+| Plain TypeScript (`libs/ts/native/core`) | `strict` tsconfig, ESM, no framework imports | ESLint (typescript-eslint), Prettier |
+| Vue (`libs/ts/vue/ui`) | Official Vue style guide (priority A–C), `<script setup lang="ts">` | eslint-plugin-vue |
+| Nuxt (`apps/web/nuxt`, `apps/admin/nuxt`) | Nuxt directory and auto-import conventions | @nuxt/eslint |
 | Python (later) | PEP 8, typed | ruff, mypy |
 | SQL | `snake_case`, plural table names | migration review |
 | JSON (transport) | `camelCase` fields, always-present nullables | contract schemas |
@@ -100,7 +104,7 @@ it connects.
 |---|---|
 | Public site | Nuxt (Vue 3), statically generated |
 | Admin | Nuxt (Vue 3), static SPA |
-| API | Laravel on PHP 8.4, over `libs/php/churchos-core` |
+| API | Laravel on PHP 8.4, over `libs/php/native/core` |
 | Database | MariaDB 11.4 (default); PostgreSQL supported via config |
 | Auth | Laravel session auth via Sanctum (cookie-based SPA auth) |
 | Tests | PHPUnit · Vitest · contract suite · end-to-end browser tests |
@@ -114,8 +118,13 @@ Nothing in this table is scaffolded yet. Phase 1 builds it.
 
 ## Repository layout (target)
 
-See [PLAN.md §2](PLAN.md#2-architecture-at-a-glance). Summary: `apps/{web,admin,api-laravel}`,
-`libs/shared/contract`, `libs/php/churchos-core`, `libs/ts/{churchos-core,ui,theme}`, `e2e/`.
+See [PLAN.md §2](PLAN.md#2-architecture-at-a-glance). Two rules:
+
+- **Apps:** `apps/<role>/<framework>`, e.g. `apps/web/nuxt`, `apps/admin/nuxt`, `apps/api/laravel`.
+- **Libraries:** `libs/<language>/<platform>/<name>`, where `native` means no framework,
+  e.g. `libs/php/native/core`, `libs/ts/native/core`, `libs/ts/vue/ui`. Language-neutral
+  assets live in `libs/shared/` (`contract`, `theme`). The folder states what a library
+  may depend on.
 
 ---
 
@@ -149,8 +158,8 @@ Commit messages: Conventional Commits (`feat(prayer): …`, `fix(api): …`, `do
 
 ## Versioning
 
-Semantic versioning. Release codenames follow Kootenai River Valley geography, one
-per minor release: **1.0.0 Kootenai** (cutover) → 1.1.0 Cabinet → 1.2.0 Fisher →
+Semantic versioning. Release codenames follow Kootenai River Valley geography (rivers,
+creeks, lakes and mountains), one per minor release: **1.0.0 Kootenai** (cutover) → 1.1.0 Cabinet → 1.2.0 Fisher →
 1.3.0 Quartz → … → 2.0.0 Yaak (first breaking change). Version map: PLAN.md §2.
 
 `version.json` is the only place the version is written. The site footer, the admin
@@ -161,7 +170,7 @@ badge and `GET /api/health` read it; they never hardcode it.
 ## RBAC roles
 
 `superadmin → admin → staff → member → guest`. Authorization rules live in
-`libs/php/churchos-core`; Laravel policies call them. Every protected endpoint is
+`libs/php/native/core`; Laravel policies call them. Every protected endpoint is
 checked server-side. Frontend guards are UX only.
 
 ---

@@ -31,32 +31,39 @@ church can self-host it on inexpensive shared hosting.
 
 ## 2. Architecture at a glance
 
-### Repository layout (target — ⚖ Decision D1)
+### Repository layout (✅ D1, approved 2026-10-08)
 
 ```
 churchos/
-├── apps/
-│   ├── web/                  Nuxt — public site (statically generated)
-│   ├── admin/                Nuxt — admin dashboard (static SPA)
-│   └── api-laravel/          Laravel — REST API (thin adapter over the PHP core)
-│   # later: api-fastapi/ (restored from archive/fastapi-0.x), other frontends
-├── libs/
-│   ├── shared/
-│   │   └── contract/         JSON Schemas + openapi.yaml (enforces the domain model)
+├── apps/                         apps/<role>/<framework>
+│   ├── web/nuxt/                 Public site (statically generated)     @churchos/web-nuxt
+│   ├── admin/nuxt/               Admin dashboard (static SPA)           @churchos/admin-nuxt
+│   └── api/laravel/              REST API (thin adapter over the core)  @churchos/api-laravel
+│   # later: api/fastapi/ (restored from archive/fastapi-0.x), web/blade/, …
+├── libs/                         libs/<language>/<platform>/<name>
+│   ├── shared/                   no language
+│   │   ├── contract/             JSON Schemas + openapi.yaml (enforces the domain model)
+│   │   └── theme/                Design tokens + component CSS (any frontend)
 │   ├── php/
-│   │   └── churchos-core/    Plain PHP: domain objects, ports, services, source adapters
+│   │   ├── native/core/          Plain PHP: domain objects, ports, services, adapters   churchos/core
+│   │   └── laravel/…             Only when Laravel code must be shared between apps
 │   └── ts/
-│       ├── churchos-core/    Plain TS: generated types, API client
-│       ├── ui/               Vue components (plain Vue, no Nuxt)
-│       └── theme/            Design tokens (CSS) + component CSS
-├── e2e/                      Browser tests against a real running stack
-├── docs/                     design/, guides, assets
+│       ├── native/core/          Plain TS: generated types, API client                  @churchos/core
+│       ├── vue/ui/               Vue components (Vue only, no Nuxt)                     @churchos/vue-ui
+│       └── nuxt/…                Only when Nuxt code must be shared between apps
+├── e2e/                          Browser tests against a real running stack
+├── docs/
+│   ├── design/                   DOMAIN-MODEL.md, design decisions
+│   ├── help/                     Help articles (Markdown), loaded into the Help module on deploy
+│   └── runbooks/                 Hosting and release procedures
 ├── .github/workflows/
 ├── turbo.json · pnpm-workspace.yaml · version.json · CHANGELOG.md
 ```
 
-- `libs/<lang>/` keeps the per-language cores side by side, so adding Python later is
-  `libs/python/churchos-core` + `apps/api-fastapi`.
+- **The folder states what a library may depend on.** `native` imports no framework;
+  `vue` may import Vue; `laravel` may import Laravel. Adding Python later is
+  `libs/python/native/core` + `apps/api/fastapi`.
+- Workspace globs stay uniform: `apps/*/*` and `libs/*/*/*` (pnpm), `libs/php/*/*` (Composer).
 - PHP packages are managed by Composer. Each one also gets a small `package.json`
   so Turborepo can run its lint and test tasks with everything else.
 
@@ -68,15 +75,15 @@ churchos/
 | test | `test.libbynaz.org` | `staging` branch (automatic) | Release candidate; you verify in the UI here |
 | prod | `libbynaz.org` | `main` branch (automatic) | Live site |
 
-### Hosting topology (Namecheap Stellar Business — ⚖ Decision D2)
+### Hosting topology (Namecheap Stellar Business — ✅ D2)
 
 One domain per environment serves all three apps, so there is no cross-origin
 setup and login cookies work simply:
 
 | Path | Serves |
 |---|---|
-| `/` | `apps/web` static build |
-| `/admin` | `apps/admin` static build |
+| `/` | `apps/web/nuxt` static build |
+| `/admin` | `apps/admin/nuxt` static build |
 | `/api` | Laravel (its `public/` entry point only) |
 
 - Laravel code lives **outside** `public_html`; only its entry point is exposed.
@@ -96,12 +103,12 @@ feature/phase-N-* ──► dev ──(release PR, every 2 weeks)──► stagi
                        CI only                             test.libbynaz.org              libbynaz.org + git tag
 ```
 
-- **Cadence (⚖ Decision D3): two weeks.** Work that isn't ready waits for the next release.
+- **Cadence (✅ D3): two weeks.** Work that isn't ready waits for the next release.
 - Unfinished modules may ship to production **disabled**. The module switch doubles
   as a feature flag.
 - Hotfixes: `fix/*` from `main` → `main`, then merged back into `staging` and `dev`.
 
-### Versioning (⚖ Decision D4)
+### Versioning (✅ D4)
 
 Semantic versioning with Kootenai River Valley codenames per minor release.
 
@@ -112,7 +119,7 @@ Semantic versioning with Kootenai River Valley codenames per minor release.
 | 1.1.0 | Cabinet | Phase 5 — Prayer board |
 | 1.2.0 | Fisher | Phase 6 — Scheduled tasks + Sermons |
 | 1.3.0 | Quartz | Phase 7 — Events |
-| 1.4.0+ | TBD (suggestions: Purcell, Koocanusa, Libby Creek, Kootenai Falls) | Phases 8+ |
+| 1.4.0+ | TBD: local rivers, creeks, lakes and mountains (e.g. Mount Snowy, Treasure Mountain, Libby Creek, Koocanusa, Purcell) | Phases 8+ |
 | 2.0.0 | Yaak | Reserved for the first breaking change |
 
 `version.json` is the single source. The site footer, admin badge and `GET /api/health`
@@ -138,7 +145,7 @@ A **module** is a self-contained feature bundle:
 - Modules ship **inside this repo**. They are switched on per deployment, not
   installed from a marketplace. That avoids the security risk of third-party
   plugins and keeps this simpler than Drupal.
-- **System modules** are always on (users & roles, site settings, scheduled tasks).
+- **System modules** are always on (users & roles, site settings, help, scheduled tasks).
   **Feature modules** can be toggled (prayer, sermons, events, …).
 - The module manifest and settings are domain objects (DOMAIN-MODEL §5), so every
   backend implements them the same way.
@@ -158,8 +165,15 @@ The rules live in [CLAUDE.md → Workflow](CLAUDE.md#workflow-non-negotiable). T
 4. **Build in reviewed steps.** Each piece of code is shown and explained before it is
    written, then made to pass its tests.
 5. **CI green → `dev`.**
-6. **Release to test** on the next release. You verify in the UI on test.libbynaz.org.
-7. **Release to prod.** Tag, update CHANGELOG, mark the phase ✅.
+6. **Help ships with the feature.** Help articles, the release-notes entry, and a
+   guided tour where a task has several steps, all written in the same PR (from Phase 3 on).
+7. **Release to test** on the next release. You verify in the UI on test.libbynaz.org,
+   including the help, release notes and tours.
+8. **Release to prod.** Tag, update CHANGELOG, mark the phase ✅.
+
+**Standard done criteria for every feature phase** (added to each phase's own list):
+real-backend e2e tests pass · contrast gate passes · help articles, release notes and
+any tours written and verified on test · CHANGELOG updated · live on prod.
 
 ---
 
@@ -192,7 +206,7 @@ enough. Phases 8–12 are outlines and will be planned in detail when they come 
 
 - [x] Push all unpushed branches; tag `archive/fastapi-0.x` at `main` (2026-10-07)
 - [ ] Owner reviews and approves PLAN.md, CLAUDE.md, DOMAIN-MODEL.md drafts
-- [ ] Decisions D1–D9 resolved and recorded in §Decisions
+- [ ] Decisions D1–D11 resolved and recorded in §Decisions
 - [ ] `docs/replan` merged to `dev`
 
 ---
@@ -211,13 +225,13 @@ the PHP core, and an `/admin` placeholder reads it.
 
 **Contract & core**
 - `libs/shared/contract`: schemas for the operational objects (Envelope, ErrorEnvelope, HealthStatus, VersionInfo)
-- `libs/php/churchos-core`: those objects + `HealthService` port, pure PHP, unit-tested
-- `libs/ts/churchos-core`: types generated from the schemas, API client with timeout + error handling
+- `libs/php/native/core`: those objects + `HealthService` port, pure PHP, unit-tested
+- `libs/ts/native/core`: types generated from the schemas, API client with timeout + error handling
 
 **Apps**
-- `apps/api-laravel`: `GET /api/health` via the core; MariaDB connection check
-- `apps/admin`: placeholder page showing version + API health (proves admin → API wiring)
-- `apps/web`: placeholder, built but **not** deployed to `/` (the old site stays live)
+- `apps/api/laravel`: `GET /api/health` via the core; MariaDB connection check
+- `apps/admin/nuxt`: placeholder page showing version + API health (proves admin → API wiring)
+- `apps/web/nuxt`: placeholder, built but **not** deployed to `/` (the old site stays live)
 
 **Testing**
 - PHPUnit for PHP, Vitest for TS
@@ -253,13 +267,13 @@ merge, and give both apps the shared look.
   teal-tinted charcoal, stone-100 background) with the archived `tokens.css` (charcoal
   50–600 and stone 300–950 dropped; charcoal-700 and stone-100 shifted). Present
   findings and a proposed palette for approval.
-- `libs/ts/theme`: tokens + **semantic** tokens (`surface`, `surface-raised`,
+- `libs/shared/theme`: tokens + **semantic** tokens (`surface`, `surface-raised`,
   `text`, `text-muted`, `card-header-bg`, `card-header-text`, …) for light and dark.
   Components use semantic tokens only.
 - **Contrast gate in CI:** every approved foreground/background pair is checked
   against WCAG AA (4.5:1 body text, 3:1 large text and UI). Plus accessibility checks
   on rendered pages in the e2e suite.
-- `libs/ts/ui`: Vue components (button, card, badge, form controls, scripture
+- `libs/ts/vue/ui`: Vue components (button, card, badge, form controls, scripture
   callout, container, section), each tested
 - Fonts: Cinzel / Lora / DM Sans. Self-hosted vs Google Fonts is a privacy and
   performance decision to make at plan review.
@@ -290,9 +304,22 @@ module registry, and an audit trail. All of it manageable in the admin.
   forms); secret settings encrypted at rest and never returned to the browser
 - Audit log: who changed what, when; viewable by admins
 - Email: Laravel mail over the host's SMTP, for password reset and invites
+- **Help module (system)**: the basis every later phase adds to
+  - Help articles, written as Markdown in `docs/help/` alongside the code and loaded
+    into the module on deploy. Searchable, with a quiet "Help" link on each admin
+    screen that opens the article for that screen.
+  - **Release notes**: "What's new in this release" for every version. A subtle,
+    dismissible banner on the admin dashboard links to them. It appears once per
+    user per release and never covers content.
+  - **Guided tours on request**: a "Show me how" link next to a task starts a
+    step-by-step walkthrough that highlights each control in turn. Tours **never start
+    on their own**. Large text, plain language, Back/Next/Close on every step, and
+    usable by keyboard and screen reader. Built as our own small Vue component (no tour
+    library), with tours defined as data next to the help articles.
 
 **Done when:** you can sign in to `libbynaz.org/admin`, invite a staff user, change
-site settings, and see each action in the audit log, all verified on test first.
+site settings, and see each action in the audit log; the help articles, the 0.3.0
+release notes and a "Show me how: invite a user" tour work. All verified on test first.
 Role checks are covered by e2e tests against the real API.
 
 ---
@@ -312,6 +339,10 @@ it editable in the admin and the restored theme applied.
 - **Temporary sermons:** a Logos embed block configured with the channel ID
   (`13608627`). New functionality; replaced in Phase 6.
 - Contact form → email to a configured address (rate-limited)
+- **Public help:** an FAQ block the church edits in the admin, plus visitor help
+  pages and "Show me how" tours where a public task has several steps (e.g. submitting
+  a prayer request). An optional, subtle "What's new" note on the home page for
+  visitor-facing changes.
 - 404 page, sitemap, robots.txt, redirects from any old URLs
 - Static generation: the public site rebuilds and redeploys when content is published
   (⚖ D8 — how a publish triggers a rebuild on shared hosting)
@@ -403,11 +434,28 @@ overrides survive a re-sync (tested).
 
 | # | Phase | Notes carried over |
 |---|---|---|
-| 8 | **Giving** | Stripe.js holds all card input; webhook signature verified; members see only their own history; no bulk export. Settings via module config. |
+| 8 | **Giving** | Stripe.js holds all card input; webhook signature verified; members see only their own history; no bulk export. Settings via module config. Two "Show me how" tours: setting up giving (admin) and giving a tithe or offering (visitor/member). |
 | 9 | **Member directory** | Member role minimum, never public; consent before listing; per-field visibility; personal data encrypted at rest (column-level); every read audited; no bulk export. |
 | 10 | **External login providers** | Microsoft, Google, Apple via Laravel's first-party OAuth package (Socialite — dependency approval); group → role mapping. |
-| 11 | **Integrations** | Email providers (MS365 Graph, Gmail), calendar sync (Google/Outlook), AI moderation providers (Gloo, Grok), storage (B2/S3). Each one is a source/sink adapter behind a core port. |
-| 12 | **Portability & second backend** | New-church setup guide and installer; Lighthouse ≥ 95; security review; restore FastAPI as `apps/api-fastapi` + `libs/python/churchos-core`, passing the same contract suite. |
+| 11 | **Integrations** | Email providers (MS365 Graph, Gmail), calendar sync (Google/Outlook), AI moderation providers (Gloo, Grok), storage (B2/S3). Each one is a source/sink adapter behind a core port. **AI help assistant** (see below). |
+| 12 | **Portability & second backend** | New-church setup guide and installer; Lighthouse ≥ 95; security review; restore FastAPI as `apps/api/fastapi` + `libs/python/native/core`, passing the same contract suite. |
+
+### AI help assistant (Phase 11) — answers only from approved sources
+
+- **Approved sources only**, managed in the admin as a list of *knowledge sources*:
+  ChurchOS help articles · the church's own published content (pages, FAQ, sermon
+  transcripts, events) · external resources an admin adds **by URL** (e.g. official
+  Church of the Nazarene pages). Each source can be switched on or off.
+- **No web search, ever.** External URLs are fetched once by our server, stored and
+  indexed in our own database, and refreshed on a schedule (Phase 6 scheduler). At
+  question time the assistant only sees passages retrieved from that index.
+- Every answer **cites its sources** (links). If the sources don't cover the question,
+  it says so and points to the contact page instead of guessing.
+- It never takes actions and never sees personal data (prayer requests, directory, giving).
+- **Honest limit:** the *knowledge* stays in our ecosystem, but generating the wording
+  still calls an AI model at the configured provider. Only the question and the retrieved
+  passages are sent, and we choose a provider whose terms exclude training on and
+  retaining that data. A self-hosted model is a possible later option.
 
 ---
 
@@ -434,12 +482,14 @@ Proposed defaults. Each needs your ✅ or a change before the phase that uses it
 
 | # | Decision | Proposed | Needed by |
 |---|---|---|---|
-| D1 | Repo layout | `apps/` + `libs/<lang>/` as in §2 | Phase 1 |
-| D2 | URL layout | One domain per env: `/`, `/admin`, `/api` | Phase 1 |
-| D3 | Release cadence | Every two weeks | Phase 1 |
-| D4 | Version map | 0.x pre-cutover; **1.0.0 Kootenai = cutover**; one codename per module release | Phase 1 |
+| D1 | Repo layout | ✅ Nested: `apps/<role>/<framework>`, `libs/<language>/<platform>/<name>` (approved 2026-10-08) | Phase 1 |
+| D2 | URL layout | ✅ One domain per env: `/`, `/admin`, `/api` (approved 2026-10-08) | Phase 1 |
+| D3 | Release cadence | ✅ Every two weeks (approved 2026-10-08) | Phase 1 |
+| D4 | Version map | ✅ 0.x pre-cutover; **1.0.0 Kootenai = cutover**; one codename per minor release, drawn from local rivers, creeks and mountains (approved 2026-10-08) | Phase 1 |
 | D5 | FastAPI code in the working tree | Remove (kept in archive tag) rather than leave unmaintained | Phase 1 |
 | D6 | E2E browser test tool | Playwright (dependency approval) | Phase 1 |
 | D7 | Auth | Laravel Sanctum cookie-based SPA auth (first-party) | Phase 3 |
 | D8 | Rebuild the static site on publish | Admin publish → API queues a rebuild → GitHub Actions builds and deploys (needs a scoped GitHub token on the server) vs. render public pages at runtime from the API | Phase 4 |
 | D9 | Two-factor sign-in | Required for staff and above; optional for members | Phase 3 |
+| D10 | Help experience | ✅ Release-notes banner + on-request "Show me how" tours; no "new" badges, no automatic tours (approved 2026-10-08) | Phase 3 |
+| D11 | AI help assistant sources | ✅ Approved knowledge sources only (own content + admin-added URLs, indexed locally); no web search (approved 2026-10-08) | Phase 11 |
