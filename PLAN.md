@@ -326,7 +326,7 @@ module registry, and an audit trail. All of it manageable in the admin.
     section of the article.
   - **One Help button, same place on every page** (admin here; public pages from
     Phase 4): a labelled "? Help" button at the right of the page title. It opens the
-    **help panel** for that page (⚖ D12):
+    **help panel** for that page (✅ D12):
     - Desktop/tablet: slides in from the right and leaves the page visible, so people
       can follow the steps while reading. Phone: a full-screen sheet with a large Close button.
     - Inside: the article for this page, a **"Show me how"** button when a tour exists,
@@ -522,5 +522,5 @@ Proposed defaults. Each needs your ✅ or a change before the phase that uses it
 | D9 | Two-factor sign-in | ✅ Required for staff and above; optional for members (approved 2026-10-09) | Phase 3 |
 | D10 | Help experience | ✅ Release-notes banner + on-request "Show me how" tours; no "new" badges, no automatic tours (approved 2026-10-08) | Phase 3 |
 | D11 | AI help assistant sources | ✅ Approved knowledge sources only (own content + admin-added URLs, indexed locally); no web search (approved 2026-10-08) | Phase 11 |
-| D12 | Help panel + tour blend | Proposed: one "? Help" button per page → right-side help panel (full-screen on phones); tours offer "Read this instead"; articles offer "Show me how" | Phase 3 |
-| D13 | Auth across stacks | Proposed: a ChurchOS **auth contract** in the domain model (objects, flows, endpoints, error codes, cookie rules, password-hash export format). Each backend implements it with its framework's vetted built-in auth. No external identity provider. Independently reviewed 2026-10-09 | Phase 3 |
+| D12 | Help panel + tour blend | ✅ (approved 2026-10-09): one "? Help" button per page → right-side help panel (full-screen on phones); tours offer "Read this instead"; articles offer "Show me how" | Phase 3 |
+| D13 | Auth across stacks | ✅ (approved 2026-10-09): a ChurchOS **auth contract** in the domain model (objects, flows, endpoints, error codes, cookie rules, password-hash export format). Each backend implements it with its framework's vetted built-in auth. No external identity provider. Independently reviewed 2026-10-09 | Phase 3 |

@@ -182,7 +182,7 @@ Syncs never overwrite staff edits.
 
 ## 5. Core platform domain (Phase 3)
 
-### 5.0 Auth contract (Phase 3) *(outline, ✅ D7 / proposed D13)*
+### 5.0 Auth contract (Phase 3) *(outline, ✅ D7 / D13)*
 
 The contract is the same for every backend. Each backend implements it with its
 framework's own vetted auth (Laravel: Sanctum + Fortify; Django: `contrib.auth` +
