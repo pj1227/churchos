@@ -256,6 +256,7 @@ Modules declare their settings in a **manifest** in code; storage holds only val
 
 - `HelpArticle`: slug, title, audience `Enum{public|member|staff|admin}`, moduleKey?,
   screenKeys `List<Key>` (the screens whose "Help" link opens it), body `RichText`,
+  sections `List<HelpSection>` (slug, heading; tour steps link to these),
   sinceVersion, updatedInVersion. Source shape: a Markdown file in `docs/help/` with
   front-matter; loaded into storage on deploy.
 - `ReleaseNote`: version, codename?, releasedOn `LocalDate`, items `List<ReleaseNoteItem>`
@@ -264,7 +265,9 @@ Modules declare their settings in a **manifest** in code; storage holds only val
   for that user and release only.
 - `Tour`: key, title, audience, moduleKey?, steps `List<TourStep>`
 - `TourStep`: anchor `Key` (a stable `data-tour` id on a UI element, never a CSS
-  selector), screenKey, title, body. Invariant: tours start only from a user action.
+  selector), screenKey, title, body, articleSection `Slug?` (the help-article section
+  that "Read this instead" opens). Invariant: tours and the help panel open only from
+  a user action.
 
 ---
 

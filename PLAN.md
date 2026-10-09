@@ -206,7 +206,7 @@ enough. Phases 8–12 are outlines and will be planned in detail when they come 
 
 - [x] Push all unpushed branches; tag `archive/fastapi-0.x` at `main` (2026-10-07)
 - [ ] Owner reviews and approves PLAN.md, CLAUDE.md, DOMAIN-MODEL.md drafts
-- [ ] Decisions D1–D11 resolved and recorded in §Decisions
+- [ ] Decisions D1–D12 resolved and recorded in §Decisions
 - [ ] `docs/replan` merged to `dev`
 
 ---
@@ -218,7 +218,7 @@ every pipe end to end: `GET /api/health` answers on libbynaz.org from Laravel vi
 the PHP core, and an `/admin` placeholder reads it.
 
 **Repo**
-- Clear the FastAPI-era app code from the working tree (it stays in the archive tag — ⚖ D5)
+- Clear the FastAPI-era app code from the working tree (it stays in the archive tag — ✅ D5)
 - Scaffold the target layout (§2): pnpm + Turborepo + Composer workspaces
 - Formatters, linters and static analysis per language (CLAUDE.md → Coding standards); CI fails on violations
 - `version.json` read at build/run time by every app
@@ -236,7 +236,7 @@ the PHP core, and an `/admin` placeholder reads it.
 **Testing**
 - PHPUnit for PHP, Vitest for TS
 - Contract suite: validates real HTTP responses from a running API against the schemas
-- End-to-end harness: a browser test opens the real admin, against the real API and a real MariaDB (⚖ D6 tool choice)
+- End-to-end harness: a browser test opens the real admin, against the real API and a real MariaDB (✅ D6: Playwright)
 
 **CI/CD**
 - CI on PRs: lint · static analysis · unit · contract · e2e, with PHP 8.4 + MariaDB 11.4 service containers to mirror the host
@@ -273,6 +273,9 @@ merge, and give both apps the shared look.
 - **Contrast gate in CI:** every approved foreground/background pair is checked
   against WCAG AA (4.5:1 body text, 3:1 large text and UI). Plus accessibility checks
   on rendered pages in the e2e suite.
+- **Visual drift check:** Playwright screenshots of `/design` and the admin shell,
+  compared on every PR. An unintended theme change shows up as a failed comparison to
+  review, not a surprise later.
 - `libs/ts/vue/ui`: Vue components (button, card, badge, form controls, scripture
   callout, container, section), each tested
 - Fonts: Cinzel / Lora / DM Sans. Self-hosted vs Google Fonts is a privacy and
@@ -293,7 +296,7 @@ module registry, and an audit trail. All of it manageable in the admin.
   HttpOnly cookie, CSRF-protected; no tokens in JS-readable storage.
 - Passwords hashed with PHP's native `password_hash` (Argon2id where available);
   login throttling; password reset and email verification
-- Two-factor sign-in (authenticator-app codes) required for staff and above (⚖ D9)
+- Two-factor sign-in (authenticator-app codes) required for staff and above; optional for members (✅ D9)
 - Roles `superadmin → admin → staff → member → guest`. The authorization rules live in
   the PHP core; Laravel policies only call them. Enforced in the API.
 - Admin: sign in/out, password reset (email), user list, invite user, change role,
@@ -306,16 +309,26 @@ module registry, and an audit trail. All of it manageable in the admin.
 - Email: Laravel mail over the host's SMTP, for password reset and invites
 - **Help module (system)**: the basis every later phase adds to
   - Help articles, written as Markdown in `docs/help/` alongside the code and loaded
-    into the module on deploy. Searchable, with a quiet "Help" link on each admin
-    screen that opens the article for that screen.
+    into the module on deploy. Searchable. Written so that each tour step matches a
+    section of the article.
+  - **One Help button, same place on every page** (admin here; public pages from
+    Phase 4): a labelled "? Help" button at the right of the page title. It opens the
+    **help panel** for that page (⚖ D12):
+    - Desktop/tablet: slides in from the right and leaves the page visible, so people
+      can follow the steps while reading. Phone: a full-screen sheet with a large Close button.
+    - Inside: the article for this page, a **"Show me how"** button when a tour exists,
+      related articles, help search, and "Open as full page" (for printing or sharing).
+    - Never opens by itself. Esc or Close returns focus to where the person was.
   - **Release notes**: "What's new in this release" for every version. A subtle,
     dismissible banner on the admin dashboard links to them. It appears once per
     user per release and never covers content.
-  - **Guided tours on request**: a "Show me how" link next to a task starts a
-    step-by-step walkthrough that highlights each control in turn. Tours **never start
-    on their own**. Large text, plain language, Back/Next/Close on every step, and
-    usable by keyboard and screen reader. Built as our own small Vue component (no tour
-    library), with tours defined as data next to the help articles.
+  - **Guided tours on request**: "Show me how" (from the help panel or next to a task)
+    starts a step-by-step walkthrough. Each step is a small pop-up box pointing at one
+    control. Tours **never start on their own**. Large text, plain language,
+    Back / Next / Close on every step, plus **"Read this instead"**, which ends the tour
+    and opens the help panel at the matching section. Usable by keyboard and screen
+    reader. Built as our own small Vue component (no tour library), with tours defined
+    as data next to the help articles.
 
 **Done when:** you can sign in to `libbynaz.org/admin`, invite a staff user, change
 site settings, and see each action in the audit log; the help articles, the 0.3.0
@@ -339,13 +352,16 @@ it editable in the admin and the restored theme applied.
 - **Temporary sermons:** a Logos embed block configured with the channel ID
   (`13608627`). New functionality; replaced in Phase 6.
 - Contact form → email to a configured address (rate-limited)
-- **Public help:** an FAQ block the church edits in the admin, plus visitor help
-  pages and "Show me how" tours where a public task has several steps (e.g. submitting
-  a prayer request). An optional, subtle "What's new" note on the home page for
+- **Public help:** the same Help button and help panel on public pages that have help
+  (prayer board, contact, later giving), "Show me how" tours where a public task has
+  several steps (e.g. submitting a prayer request), and an FAQ block the church edits
+  in the admin. An optional, subtle "What's new" note on the home page for
   visitor-facing changes.
 - 404 page, sitemap, robots.txt, redirects from any old URLs
-- Static generation: the public site rebuilds and redeploys when content is published
-  (⚖ D8 — how a publish triggers a rebuild on shared hosting)
+- Static generation (✅ D8): publishing in the admin triggers a GitHub Actions rebuild
+  and deploy (about 2–4 minutes). Frequently changing data (prayer board, upcoming
+  events, latest sermon) is fetched live from the API when the page loads. The admin
+  preview shows changes instantly.
 - Lighthouse check in CI (target ≥ 90 now, ≥ 95 by Phase 12)
 
 **Cutover:** verify everything on test.libbynaz.org → release to prod (`/` switches to
@@ -486,10 +502,11 @@ Proposed defaults. Each needs your ✅ or a change before the phase that uses it
 | D2 | URL layout | ✅ One domain per env: `/`, `/admin`, `/api` (approved 2026-10-08) | Phase 1 |
 | D3 | Release cadence | ✅ Every two weeks (approved 2026-10-08) | Phase 1 |
 | D4 | Version map | ✅ 0.x pre-cutover; **1.0.0 Kootenai = cutover**; one codename per minor release, drawn from local rivers, creeks and mountains (approved 2026-10-08) | Phase 1 |
-| D5 | FastAPI code in the working tree | Remove (kept in archive tag) rather than leave unmaintained | Phase 1 |
-| D6 | E2E browser test tool | Playwright (dependency approval) | Phase 1 |
+| D5 | FastAPI code in the working tree | ✅ Remove; it stays in the archive tag (approved 2026-10-09) | Phase 1 |
+| D6 | E2E browser test tool | ✅ Playwright (approved 2026-10-09). No Storybook for now: the `/design` page, component tests and Playwright screenshot comparisons cover it | Phase 1 |
 | D7 | Auth | Laravel Sanctum cookie-based SPA auth (first-party) | Phase 3 |
-| D8 | Rebuild the static site on publish | Admin publish → API queues a rebuild → GitHub Actions builds and deploys (needs a scoped GitHub token on the server) vs. render public pages at runtime from the API | Phase 4 |
-| D9 | Two-factor sign-in | Required for staff and above; optional for members | Phase 3 |
+| D8 | Rebuild the static site on publish | ✅ Rebuild via GitHub Actions on publish; live API data for frequently changing parts; instant admin preview (approved 2026-10-09) | Phase 4 |
+| D9 | Two-factor sign-in | ✅ Required for staff and above; optional for members (approved 2026-10-09) | Phase 3 |
 | D10 | Help experience | ✅ Release-notes banner + on-request "Show me how" tours; no "new" badges, no automatic tours (approved 2026-10-08) | Phase 3 |
 | D11 | AI help assistant sources | ✅ Approved knowledge sources only (own content + admin-added URLs, indexed locally); no web search (approved 2026-10-08) | Phase 11 |
+| D12 | Help panel + tour blend | Proposed: one "? Help" button per page → right-side help panel (full-screen on phones); tours offer "Read this instead"; articles offer "Show me how" | Phase 3 |
