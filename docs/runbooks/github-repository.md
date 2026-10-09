@@ -23,7 +23,7 @@ from outside (Railway, Cloudflare).
 | Secret scanning / push protection | Off | A pasted key could be committed without warning |
 | Dependabot alerts / security updates | Off | No notice of vulnerable dependencies |
 | Workflows | `ci.yml` (PRs + pushes to `dev`); `deploy-staging.yml` (push to `staging` → Cloudflare Pages `churchos-staging`; Railway step is a no-op); `deploy-production.yml` (push to `main` → Cloudflare Pages `churchos` + `railway up`) | Old stack; replaced in Phase 1 |
-| Outside integrations | **Railway GitHub app** auto-deploys `main` to Railway project "responsible-spontaneity" (28 deployments), *in addition to* the workflow's `railway up` | Every production merge deploys the API twice, and it is outside GitHub Actions |
+| Outside integrations | **Railway GitHub app** auto-deployed `main` to Railway project "responsible-spontaneity" (28 deployments, last 2026-07-20), *in addition to* the workflow's `railway up` | ~~Every production merge deploys the API twice~~ Fixed 2026-10-09 (N0). The workflow's `railway up` remains until Phase 1 (P3) |
 | Secrets | `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `RAILWAY_TOKEN`. Workflows also reference `STAGING_/PROD_SUPABASE_*`, which don't exist and resolve to empty values | Old stack |
 | Environments | `churchos-staging (Production)` (Cloudflare), `responsible-spontaneity / production` (Railway) | Leftovers |
 | Hosting (for reference) | `libbynaz.org` and `test.libbynaz.org` → Namecheap server `162.0.215.160` (LiteSpeed web server, Namecheap DNS). `api.libbynaz.org` not created yet | — |
@@ -34,7 +34,7 @@ from outside (Railway, Cloudflare).
 
 Each item says what to change, what it does, and where to find it.
 
-### ☐ N0 — Disconnect Railway's auto-deploy (owner, before any Phase 1 code)
+### ☑ N0 — Disconnect Railway's auto-deploy (owner, before any Phase 1 code) — done 2026-10-09
 - **What it does:** stops Railway deploying this repo on its own whenever `main` changes.
 - **Why now:** Phase 1 removes `apps/api`. Without this, the first merge to `main`
   makes Railway try to deploy a repo with no API.
@@ -45,6 +45,9 @@ Each item says what to change, what it does, and where to find it.
   would show a devfolio repo instead.
 - **Where:** Railway → the project → service → Settings → Source → **Disconnect**.
   Keep the service running or delete it as you prefer: libbynaz.org doesn't use it.
+- **GitHub side:** profile → Settings → Applications → Installed GitHub Apps → Railway →
+  Configure → Repository access. Keep `pj1227/devfolio` (it uses Railway); remove
+  `pj1227/churchos`. Railway then receives no events from this repo.
 
 ### ☐ N1 — Require CI to pass before merging
 - **What it does:** the Merge button stays disabled until the listed checks are green.
@@ -149,3 +152,4 @@ Each item says what to change, what it does, and where to find it.
 | Date | By | Notes |
 |---|---|---|
 | 2026-10-09 | Claude Code | Initial audit (§1); recommendations N0–N6, P1–P6 |
+| 2026-10-09 | Owner | N0 done: Railway source disconnected (project `f4a80fcb-…`); `churchos` removed from the Railway GitHub App's repository access, `devfolio` kept. The old Railway API service is still running (unused) |
