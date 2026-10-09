@@ -24,7 +24,7 @@ its entry to `## [Unreleased]` under one of Added / Changed / Fixed / Removed.
 - `apps/admin/.env.example` — previously missing
 
 ### Changed
-- **Project restart (draft, pending review):** ChurchOS is being re-planned as
+- **Project restart (approved 2026-10-09):** ChurchOS is being re-planned as
   Nuxt + Laravel with plain-language core libraries, a module system, and
   test → production releases. The FastAPI + Supabase build is preserved at tag
   `archive/fastapi-0.x`. `PLAN.md` and `CLAUDE.md` rewritten;

@@ -1,6 +1,6 @@
 # ChurchOS — Master Build Plan
 
-> **Status: DRAFT — awaiting owner review** · Drafted 2026-10-07 on `docs/replan`
+> **Status: Approved** by the owner 2026-10-09 (PR #80) · Drafted 2026-10-07
 > This plan replaces the FastAPI + Supabase plan, which is preserved at git tag
 > [`archive/fastapi-0.x`](https://github.com/pj1227/churchos/tree/archive/fastapi-0.x).
 > Items marked **⚖ Decision** need your approval before the phase that depends on them starts.
@@ -211,13 +211,13 @@ enough. Phases 8–12 are outlines and will be planned in detail when they come 
 **Goal:** Preserve the FastAPI build and agree the new plan before any code.
 
 - [x] Push all unpushed branches; tag `archive/fastapi-0.x` at `main` (2026-10-07)
-- [ ] Owner reviews and approves PLAN.md, CLAUDE.md, DOMAIN-MODEL.md drafts
+- [x] Owner reviews and approves PLAN.md, CLAUDE.md, DOMAIN-MODEL.md (2026-10-09, PR #80)
 - [x] Decisions D1–D17 resolved and recorded in §Decisions (2026-10-09)
 - [x] CI green on PR #80 (ruff pinned to 0.15.15)
 - [x] **Gate — owner:** Railway auto-deploy disconnected from this repo
   ([runbook](docs/runbooks/github-repository.md) N0). Done by owner 2026-10-09; final
   proof is that the first Phase 1 merge to `main` creates no `railway-app[bot]` deployment.
-- [ ] **Gate — owner:** GitHub settings N1–N6 applied (required checks, merge methods,
+- [x] **Gate — owner:** GitHub settings N1–N6 applied (2026-10-09, plus N0b, N7, N8) (required checks, merge methods,
   classic protection removed, auto-delete branches, security features, read-only token)
 - [ ] `docs/replan` merged to `dev`
 
@@ -593,7 +593,7 @@ These are the failure modes the new workflow is designed to prevent:
 
 ## Decisions
 
-Proposed defaults. Each needs your ✅ or a change before the phase that uses it.
+All decisions approved by the owner (2026-10-08 to 2026-10-09). New decisions are added here as ⚖ until approved.
 
 | # | Decision | Proposed | Needed by |
 |---|---|---|---|

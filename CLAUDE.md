@@ -1,6 +1,6 @@
 # ChurchOS — CLAUDE.md
 
-> **Status: DRAFT — awaiting owner review** (`docs/replan`, 2026-10-07)
+> **Status: Approved** by the owner 2026-10-09 (PR #80)
 
 Project conventions for AI-assisted and human development.
 **This file is the single source of truth for how we work.**
@@ -19,7 +19,7 @@ ChurchOS is a modular, open-source church CMS. It is built first for Libby Churc
 the Nazarene, where it will replace https://libbynaz.org, and is designed so any
 church can self-host it on inexpensive cPanel shared hosting.
 
-**State of the repo (2026-10-07):** re-planning. The project is restarting as
+**State of the repo (2026-10-09):** plan approved; Phase 1 is next. The project is restarting as
 **Nuxt + Laravel**. The previous FastAPI + Supabase build is preserved at git tag
 `archive/fastapi-0.x`, and its code is still in the working tree until Phase 1 clears
 it. Do not extend that code. Restore pieces from the tag only when a phase plan says so:
