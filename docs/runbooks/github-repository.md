@@ -23,7 +23,7 @@ from outside (Railway, Cloudflare).
 | Secret scanning / push protection | Off | A pasted key could be committed without warning |
 | Dependabot alerts / security updates | Off | No notice of vulnerable dependencies |
 | Workflows | `ci.yml` (PRs + pushes to `dev`); `deploy-staging.yml` (push to `staging` → Cloudflare Pages `churchos-staging`; Railway step is a no-op); `deploy-production.yml` (push to `main` → Cloudflare Pages `churchos` + `railway up`) | Old stack; replaced in Phase 1 |
-| Outside integrations | **Railway GitHub app** auto-deployed `main` to Railway project "responsible-spontaneity" (28 deployments, last 2026-07-20), *in addition to* the workflow's `railway up` | ~~Every production merge deploys the API twice~~ Fixed 2026-10-09 (N0). The workflow's `railway up` remains until Phase 1 (P3) |
+| Outside integrations | **Cloudflare Workers and Pages GitHub app** builds `churchos` and `churchos-staging` on its own (N0b). **Railway GitHub app** auto-deployed `main` to Railway project "responsible-spontaneity" (28 deployments, last 2026-07-20), *in addition to* the workflow's `railway up` | ~~Every production merge deploys the API twice~~ Fixed 2026-10-09 (N0). The workflow's `railway up` remains until Phase 1 (P3) |
 | Secrets | `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `RAILWAY_TOKEN`. Workflows also reference `STAGING_/PROD_SUPABASE_*`, which don't exist and resolve to empty values | Old stack |
 | Environments | `churchos-staging (Production)` (Cloudflare), `responsible-spontaneity / production` (Railway) | Leftovers |
 | Hosting (for reference) | `libbynaz.org` and `test.libbynaz.org` → Namecheap server `162.0.215.160` (LiteSpeed web server, Namecheap DNS). `api.libbynaz.org` not created yet | — |
@@ -48,6 +48,17 @@ Each item says what to change, what it does, and where to find it.
 - **GitHub side:** profile → Settings → Applications → Installed GitHub Apps → Railway →
   Configure → Repository access. Keep `pj1227/devfolio` (it uses Railway); remove
   `pj1227/churchos`. Railway then receives no events from this repo.
+
+### ☐ N0b — Remove this repo from the Cloudflare GitHub App
+- **What it does:** stops Cloudflare Pages building this repo on its own. The
+  "Cloudflare Pages: churchos" and "Cloudflare Pages: churchos-staging" checks on
+  commits come from the **Cloudflare Workers and Pages** GitHub App, separately from
+  the workflows' `wrangler pages deploy`, so Cloudflare was also deploying twice.
+- **Why now:** once Phase 1 removes the old apps, those automatic builds would fail
+  on every push. Nothing on libbynaz.org uses the Cloudflare sites.
+- **Where:** profile → Settings → Applications → Installed GitHub Apps → **Cloudflare
+  Workers and Pages** → Configure → Repository access → remove `pj1227/churchos`, keeping
+  any other repo that still uses it → **Save**.
 
 ### ☐ N1 — Require CI to pass before merging
 - **What it does:** the Merge button stays disabled until the listed checks are green.
@@ -152,4 +163,5 @@ Each item says what to change, what it does, and where to find it.
 | Date | By | Notes |
 |---|---|---|
 | 2026-10-09 | Claude Code | Initial audit (§1); recommendations N0–N6, P1–P6 |
+| 2026-10-09 | Claude Code | Found the Cloudflare GitHub App also building this repo (N0b). The red ✕ on `main` (d20348d) is Railway's own deploy cancelled by the simultaneous workflow deploy |
 | 2026-10-09 | Owner | N0 done: Railway source disconnected (project `f4a80fcb-…`); `churchos` removed from the Railway GitHub App's repository access, `devfolio` kept. The old Railway API service is still running (unused) |
