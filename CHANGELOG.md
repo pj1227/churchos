@@ -41,6 +41,8 @@ its entry to `## [Unreleased]` under one of Added / Changed / Fixed / Removed.
   variable names the code actually reads
 
 ### Fixed
+- CI: pinned `ruff==0.15.15` in `apps/api/requirements.txt`. The unpinned `ruff>=0.4.0`
+  resolved to 0.16.10, whose new default rules failed 176 checks in the archived code
 - Tailwind v4 dark mode — added the explicit
   `@variant dark (&:where(.dark, .dark *));` override to both apps' `main.css`
   so `dark:` utilities follow the `.dark` class from `@nuxtjs/color-mode`
