@@ -519,6 +519,26 @@ overrides survive a re-sync (tested).
   passages are sent, and we choose a provider whose terms exclude training on and
   retaining that data. A self-hosted model is a possible later option.
 
+**Why not train our own model?** (recorded 2026-10-09)
+
+| Approach | Verdict |
+|---|---|
+| Train a model from scratch | Millions of dollars and specialist teams. Not realistic and not needed. |
+| Fine-tune an open model | Teaches style, not reliable facts. Our facts (sermons, events, help) change weekly, and each retraining run costs hundreds to thousands of dollars plus GPU hosting. |
+| **Retrieve from our own sources, then have an existing model write the answer** (chosen) | The knowledge, index, instructions and test questions are ours. Only the model that writes the wording is rented, and the provider can be swapped. |
+
+- **Where it lives:** the index sits in the church's own MariaDB (built-in full-text
+  search is enough at church scale; vector search needs MariaDB 11.7+). The assistant
+  code is in the API behind an AI-provider connector. The model is called through the
+  provider's API only when someone asks a question.
+- **Self-hosting the model** can't run on shared hosting. It would need a separate server
+  (tens of dollars a month for a slow CPU-only one, hundreds for a GPU). It stays a later
+  option for churches that want everything on their own hardware.
+- **Rough cost** for ~3,000 tokens in and ~300 out per question, at 500 questions a month
+  (Anthropic list prices, 2026-10): Claude Haiku 5.5 ≈ $0.25/month, Claude Sonnet 5.5
+  ≈ $4.50/month, Claude Opus 5.5 ≈ $9/month. The model is chosen in Phase 11 by testing
+  against a set of real help questions, and the provider's data terms are confirmed then.
+
 ---
 
 ## Lessons carried over from the archived build
