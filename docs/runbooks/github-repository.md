@@ -60,7 +60,7 @@ Each item says what to change, what it does, and where to find it.
   Workers and Pages** → Configure → Repository access → remove `pj1227/churchos`, keeping
   any other repo that still uses it → **Save**.
 
-### ☐ N1 — Require CI to pass before merging
+### ☑ N1 — Require CI to pass before merging — done 2026-10-09
 - **What it does:** the Merge button stays disabled until the listed checks are green.
   This enforces the CLAUDE.md rule "all CI jobs required".
 - **Where:** Settings → Rules → Rulesets → open **protect-dev** → tick **Require status
@@ -73,7 +73,7 @@ Each item says what to change, what it does, and where to find it.
 - **Note:** a check only appears in the search after it has run in the last 7 days.
   Both ran on PR #80. These names change in Phase 1 (see P2).
 
-### ☐ N2 — Set merge methods per branch
+### ☑ N2 — Set merge methods per branch — done 2026-10-09
 - **What it does:** keeps the long-lived branches in sync.
   - **protect-dev:** allow **Squash** only. One tidy commit per feature.
   - **protect-staging** and **protect-main:** allow **Merge commit** only. Release
@@ -103,7 +103,7 @@ Each item says what to change, what it does, and where to find it.
     still go through CI and your review.
 - **Where:** Settings → Advanced Security (called "Code security" on some accounts).
 
-### ☐ N6 — Read-only default token for workflows
+### ☑ N6 — Read-only default token for workflows — already set (verified 2026-10-09)
 - **What it does:** workflows get read-only access unless a workflow asks for more.
   The current workflows already declare what they need.
 - **Where:** Settings → Actions → General → Workflow permissions → **Read repository
@@ -164,4 +164,5 @@ Each item says what to change, what it does, and where to find it.
 |---|---|---|
 | 2026-10-09 | Claude Code | Initial audit (§1); recommendations N0–N6, P1–P6 |
 | 2026-10-09 | Claude Code | Found the Cloudflare GitHub App also building this repo (N0b). The red ✕ on `main` (d20348d) is Railway's own deploy cancelled by the simultaneous workflow deploy |
+| 2026-10-09 | Owner + Claude Code | N1 + N2 done: rulesets re-imported (new ids `protect-dev` 24813168, `protect-staging` 24813175, `protect-main` 24813187); both CI checks required from GitHub Actions (app 15368), merge methods squash → `dev`, merge commit → `staging`/`main`. Verified via API; PR #80 mergeable and clean. N6 was already read-only. Ruleset JSON exports kept in the owner's `Documents/GitHub/churchos` folder (`*.original.json` = before) |
 | 2026-10-09 | Owner | N0 done: Railway source disconnected (project `f4a80fcb-…`); `churchos` removed from the Railway GitHub App's repository access, `devfolio` kept. The old Railway API service is still running (unused) |
