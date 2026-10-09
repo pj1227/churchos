@@ -90,13 +90,13 @@ Each item says what to change, what it does, and where to find it.
 - **Where:** Settings → Branches → Branch protection rules → delete the rules for
   `main` and `staging`.
 
-### ☐ N4 — Automatically delete merged branches
+### ☑ N4 — Automatically delete merged branches — done 2026-10-09 (rebase merging also turned off)
 - **What it does:** deletes a feature branch once its PR merges, so nothing is left behind.
   `dev` and `staging` are safe because their rulesets block deletion. Confirm on the
   first `dev` → `staging` release PR that `dev` survives.
 - **Where:** Settings → General → Pull Requests → tick **Automatically delete head branches**.
 
-### ☐ N5 — Turn on the free security features
+### ☑ N5 — Turn on the free security features — done 2026-10-09 (plus private vulnerability reporting)
 - **What they do:**
   - **Secret scanning + push protection:** refuses a push that contains a recognisable
     key or token, before it becomes public.
@@ -104,6 +104,29 @@ Each item says what to change, what it does, and where to find it.
   - **Dependabot security updates:** opens PRs that fix those vulnerabilities. They
     still go through CI and your review.
 - **Where:** Settings → Advanced Security (called "Code security" on some accounts).
+
+### ☐ N7 — Pause Dependabot *security updates* until Phase 1 (keep alerts on)
+- **Finding (2026-10-09):** turning on N5 raised **97 open alerts** (14 critical, 48 high,
+  28 medium, 7 low), all in the archived JavaScript stack (89 in `pnpm-lock.yaml`;
+  e.g. `nuxt`, `vite`, `vitest`, `happy-dom`, `brace-expansion`). Dependabot opened its
+  first fix PR, #81, **against `main`**, because security-update PRs always target the
+  default branch. That would skip `dev` and test.
+- **What to do:** close #81 without merging (Phase 1 deletes that code and its
+  lockfile). Turn **Dependabot security updates** off (Settings → Advanced Security)
+  so it doesn't open more PRs against `main`. Keep **Dependabot alerts** on, so the
+  alerts stay visible. Turn security updates back on in Phase 1 with the new
+  lockfiles (P4).
+- **No impact on libbynaz.org:** the live site isn't built from this repo.
+
+### ☐ N8 — Shut down the old live services (moved earlier from P3)
+- The old FastAPI API is still publicly reachable on Railway
+  (`churchos-production-c6ae.up.railway.app`) and holds the Supabase service key. The old
+  Cloudflare Pages sites are built from the vulnerable dependencies above. Nothing uses
+  either.
+- **What to do:** stop or delete the Railway service and delete the Cloudflare Pages
+  projects `churchos` and `churchos-staging`. Then, in the old Supabase project, either
+  pause it or rotate its keys (secret key and JWT secret), since copies of the old keys
+  exist in Railway and past `.env` files.
 
 ### ☑ N6 — Read-only default token for workflows — already set (verified 2026-10-09)
 - **What it does:** workflows get read-only access unless a workflow asks for more.
@@ -129,7 +152,7 @@ Each item says what to change, what it does, and where to find it.
 - Replace the N1 check names with the new CI jobs (lint, static analysis, unit,
   contract, e2e, contrast) in all three rulesets.
 
-### ☐ P3 — Retire the old stack
+### ☐ P3 — Retire the old stack (services themselves: see N8)
 - Delete the secrets `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `RAILWAY_TOKEN`.
 - Delete the environments `churchos-staging (Production)` and
   `responsible-spontaneity / production`.
@@ -166,6 +189,7 @@ Each item says what to change, what it does, and where to find it.
 |---|---|---|
 | 2026-10-09 | Claude Code | Initial audit (§1); recommendations N0–N6, P1–P6 |
 | 2026-10-09 | Claude Code | Found the Cloudflare GitHub App also building this repo (N0b). The red ✕ on `main` (d20348d) is Railway's own deploy cancelled by the simultaneous workflow deploy |
+| 2026-10-09 | Owner + Claude Code | N4 and N5 done (verified via API: auto-delete on, rebase off; Dependabot alerts + security updates, secret scanning, push protection, private vulnerability reporting on). 97 Dependabot alerts in the archived JS stack, 0 secret-scanning alerts; Dependabot PR #81 opened against `main`. Added N7 and N8 |
 | 2026-10-09 | Owner | N3 done (classic protection removed from `main` and `staging`, verified via API). N0b done: Cloudflare Workers and Pages app uninstalled (`churchos` was its only repo) |
 | 2026-10-09 | Owner + Claude Code | N1 + N2 done: rulesets re-imported (new ids `protect-dev` 24813168, `protect-staging` 24813175, `protect-main` 24813187); both CI checks required from GitHub Actions (app 15368), merge methods squash → `dev`, merge commit → `staging`/`main`. Verified via API; PR #80 mergeable and clean. N6 was already read-only. Ruleset JSON exports kept in the owner's `Documents/GitHub/churchos` folder (`*.original.json` = before) |
 | 2026-10-09 | Owner | N0 done: Railway source disconnected (project `f4a80fcb-…`); `churchos` removed from the Railway GitHub App's repository access, `devfolio` kept. The old Railway API service is still running (unused) |
