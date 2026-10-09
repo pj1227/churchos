@@ -49,7 +49,7 @@ Each item says what to change, what it does, and where to find it.
   Configure → Repository access. Keep `pj1227/devfolio` (it uses Railway); remove
   `pj1227/churchos`. Railway then receives no events from this repo.
 
-### ☐ N0b — Remove this repo from the Cloudflare GitHub App
+### ☑ N0b — Remove this repo from the Cloudflare GitHub App — done 2026-10-09 (app uninstalled)
 - **What it does:** stops Cloudflare Pages building this repo on its own. The
   "Cloudflare Pages: churchos" and "Cloudflare Pages: churchos-staging" checks on
   commits come from the **Cloudflare Workers and Pages** GitHub App, separately from
@@ -59,6 +59,8 @@ Each item says what to change, what it does, and where to find it.
 - **Where:** profile → Settings → Applications → Installed GitHub Apps → **Cloudflare
   Workers and Pages** → Configure → Repository access → remove `pj1227/churchos`, keeping
   any other repo that still uses it → **Save**.
+  If `churchos` is the app's only repo, GitHub won't allow an empty list: scroll to
+  **Danger zone → Uninstall** instead.
 
 ### ☑ N1 — Require CI to pass before merging — done 2026-10-09
 - **What it does:** the Merge button stays disabled until the listed checks are green.
@@ -82,7 +84,7 @@ Each item says what to change, what it does, and where to find it.
 - **Where:** each ruleset → **Require a pull request before merging** → **Allowed
   merge methods**.
 
-### ☐ N3 — Remove the duplicate classic branch protection
+### ☑ N3 — Remove the duplicate classic branch protection — done 2026-10-09
 - **What it does:** leaves the rulesets as the single source of branch rules.
 - **When:** after N1 and N2, so there's never a gap.
 - **Where:** Settings → Branches → Branch protection rules → delete the rules for
@@ -164,5 +166,6 @@ Each item says what to change, what it does, and where to find it.
 |---|---|---|
 | 2026-10-09 | Claude Code | Initial audit (§1); recommendations N0–N6, P1–P6 |
 | 2026-10-09 | Claude Code | Found the Cloudflare GitHub App also building this repo (N0b). The red ✕ on `main` (d20348d) is Railway's own deploy cancelled by the simultaneous workflow deploy |
+| 2026-10-09 | Owner | N3 done (classic protection removed from `main` and `staging`, verified via API). N0b done: Cloudflare Workers and Pages app uninstalled (`churchos` was its only repo) |
 | 2026-10-09 | Owner + Claude Code | N1 + N2 done: rulesets re-imported (new ids `protect-dev` 24813168, `protect-staging` 24813175, `protect-main` 24813187); both CI checks required from GitHub Actions (app 15368), merge methods squash → `dev`, merge commit → `staging`/`main`. Verified via API; PR #80 mergeable and clean. N6 was already read-only. Ruleset JSON exports kept in the owner's `Documents/GitHub/churchos` folder (`*.original.json` = before) |
 | 2026-10-09 | Owner | N0 done: Railway source disconnected (project `f4a80fcb-…`); `churchos` removed from the Railway GitHub App's repository access, `devfolio` kept. The old Railway API service is still running (unused) |
