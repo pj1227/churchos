@@ -91,7 +91,7 @@ setup and login cookies work simply:
   SSH, runs `php artisan migrate --force`, switches a `current` symlink, checks
   `/api/health`, and rolls back if that fails.
 - Background work runs from **one cPanel cron entry** (every minute) that invokes
-  the ChurchOS scheduler. The scheduler decides what is actually due (see Phase 6).
+  the ChurchOS scheduler. The scheduler decides what is actually due (see Phase 3, release 0.4.0).
 - Host facts recorded 2026-10-07: PHP selector offers 8.2–8.5 (currently 8.1, EOL;
   target **8.4**); MariaDB **11.4.13** (server charset `latin1` — we force `utf8mb4`);
   `pdo_mysql` and `pdo_pgsql` available; SSH available.
@@ -114,10 +114,10 @@ Semantic versioning with Kootenai River Valley codenames per minor release.
 
 | Version | Codename | Delivered by |
 |---|---|---|
-| 0.1.0 – 0.3.x | — (pre-release) | Phases 1–3 (not public; the old site stays live) |
+| 0.1.0 – 0.4.x | — (pre-release) | Phases 1–3 (not public; the old site stays live) |
 | **1.0.0** | **Kootenai** | Phase 4 — the cutover that replaces libbynaz.org |
 | 1.1.0 | Cabinet | Phase 5 — Prayer board |
-| 1.2.0 | Fisher | Phase 6 — Scheduled tasks + Sermons |
+| 1.2.0 | Fisher | Phase 6 — Sermons |
 | 1.3.0 | Quartz | Phase 7 — Events |
 | 1.4.0+ | TBD: local rivers, creeks, lakes and mountains (e.g. Mount Snowy, Treasure Mountain, Libby Creek, Koocanusa, Purcell) | Phases 8+ |
 | 2.0.0 | Yaak | Reserved for the first breaking change |
@@ -145,7 +145,7 @@ A **module** is a self-contained feature bundle:
 - Modules ship **inside this repo**. They are switched on per deployment, not
   installed from a marketplace. That avoids the security risk of third-party
   plugins and keeps this simpler than Drupal.
-- **System modules** are always on (users & roles, site settings, help, scheduled tasks).
+- **System modules** are always on (users & roles, site settings, help, scheduled tasks, diagnostics).
   **Feature modules** can be toggled (prayer, sermons, events, …).
 - The module manifest and settings are domain objects (DOMAIN-MODEL §5), so every
   backend implements them the same way.
@@ -184,10 +184,10 @@ any tours written and verified on test · CHANGELOG updated · live on prod.
 | 0 | Archive & re-plan | — | 🔄 in progress |
 | 1 | Foundation: tooling, CI/CD, hosting | 0.1.0 | 🔲 |
 | 2 | Design system (theme restoration) | 0.2.0 | 🔲 |
-| 3 | Core platform: auth, users, settings, modules | 0.3.0 | 🔲 |
+| 3 | Core platform: auth, users, settings, modules, scheduler, diagnostics, help | 0.3.0 + 0.4.0 | 🔲 |
 | 4 | Site content & cutover | **1.0.0 Kootenai** | 🔲 |
 | 5 | Prayer board module | 1.1.0 Cabinet | 🔲 |
-| 6 | Scheduled tasks + Sermons module | 1.2.0 Fisher | 🔲 |
+| 6 | Sermons module | 1.2.0 Fisher | 🔲 |
 | 7 | Events module | 1.3.0 Quartz | 🔲 |
 | 8 | Giving module | 1.4.0 | 🔲 |
 | 9 | Member directory module | 1.5.0 | 🔲 |
@@ -206,7 +206,7 @@ enough. Phases 8–12 are outlines and will be planned in detail when they come 
 
 - [x] Push all unpushed branches; tag `archive/fastapi-0.x` at `main` (2026-10-07)
 - [ ] Owner reviews and approves PLAN.md, CLAUDE.md, DOMAIN-MODEL.md drafts
-- [ ] Decisions D1–D13 resolved and recorded in §Decisions
+- [ ] Decisions D1–D15 resolved and recorded in §Decisions
 - [ ] `docs/replan` merged to `dev`
 
 ---
@@ -233,6 +233,18 @@ the PHP core, and an `/admin` placeholder reads it.
 - `apps/admin/nuxt`: placeholder page showing version + API health (proves admin → API wiring)
 - `apps/web/nuxt`: placeholder, built but **not** deployed to `/` (the old site stays live)
 
+**Diagnostics foundation (✅ D14)**
+- Structured daily log files on the server (they work even when the database is down),
+  written through PHP's standard logger interface (PSR-3), so the core stays framework-neutral
+- A **reference code** per request, returned in every response's `meta.requestId` and
+  shown on error pages ("Something went wrong. Reference: 7F3K-92QD")
+- **Redaction:** passwords, tokens, secrets, prayer text and personal data never reach
+  the logs (unit tests prove it)
+- Browser errors from the admin and site are reported to the API (rate-limited, no personal data)
+- **Doctor checks**, as an SSH command (`php artisan churchos:doctor`) and in `GET /api/health`:
+  PHP version and extensions, Argon2 support, `utf8mb4`, writable folders, cron heartbeat
+  seen recently, mail settings, app URL. Each failure explains the fix in plain language.
+
 **Testing**
 - PHPUnit for PHP, Vitest for TS
 - Contract suite: validates real HTTP responses from a running API against the schemas
@@ -254,6 +266,8 @@ the PHP core, and an `/admin` placeholder reads it.
 - [ ] Merge to `main` deploys prod; `https://libbynaz.org/api/health` returns 0.1.0, and the existing site is untouched
 - [ ] A failed health check after deploy rolls back automatically (demonstrated once on test)
 - [ ] Hosting runbook in `docs/` lets someone repeat the setup
+- [ ] `churchos:doctor` passes on test and prod, and a deliberately broken setting is reported with its fix
+- [ ] A forced error on test shows a reference code that finds the matching log entry
 
 ---
 
@@ -287,10 +301,12 @@ shell are verified on test and live on prod (`/admin`, `/design` only).
 
 ---
 
-## Phase 3 — Core platform → 0.3.0
+## Phase 3 — Core platform → 0.3.0 + 0.4.0
 
-**Goal:** Everything modules depend on: login, users, roles, site settings, the
-module registry, and an audit trail. All of it manageable in the admin.
+**Goal:** Everything modules depend on, all manageable in the admin. Shipped as two
+releases so each stays a reviewable size (✅ D15).
+
+### Release 0.3.0 — Sign-in, users, settings, modules, audit
 
 - **Auth follows the ChurchOS auth contract** (✅ D7, D13; DOMAIN-MODEL §5.0). It is
   implemented here with Laravel's own session auth: Sanctum (SPA cookie mode) and Fortify
@@ -320,7 +336,44 @@ module registry, and an audit trail. All of it manageable in the admin.
   forms); secret settings encrypted at rest and never returned to the browser
 - Audit log: who changed what, when; viewable by admins
 - Email: Laravel mail over the host's SMTP, for password reset and invites
-- **Help module (system)**: the basis every later phase adds to
+
+**Done when (0.3.0):** you can sign in to `libbynaz.org/admin`, invite a staff user,
+change site settings, and see each action in the audit log, all verified on test first.
+Role checks are covered by e2e tests against the real API.
+
+### Release 0.4.0 — Scheduled tasks, diagnostics, help
+
+**Scheduled tasks (system module; moved from Phase 6, ✅ D15)**
+
+- **Heartbeat vs schedule:** the single cPanel cron entry ticks every minute. That is
+  only the heartbeat. Each task's own schedule decides whether it runs on a tick.
+- Recurrence options (stored as data, defined in DOMAIN-MODEL):
+  every N minutes/hours/days/weeks · N times per day/week · specific weekdays at a
+  time (e.g. every Monday 18:00, weekdays 16:00) · monthly · advanced cron expression
+- Ends: never · after N runs · on a date
+- Retry policy: max attempts + back-off. Overlap protection (a task never runs twice at once).
+- Times entered in the church's timezone and stored in UTC
+- Admin: list tasks, enable/disable, edit schedule with a human-readable preview
+  ("Every weekday at 4:00 PM — next run Tue Oct 13, 4:00 PM"), **Run now**, run
+  history with status and messages
+- Recurrence logic lives in the PHP core (pure, heavily unit-tested); Laravel only
+  provides the heartbeat command and storage
+- First tasks: `logs.purge`, `audit.purge`, `sessions.cleanup`, `password_resets.expire`
+
+**Diagnostics (system module, ✅ D14)**
+- Admin **Diagnostics** screen: browse and filter recent errors, look up a reference code,
+  view doctor results
+- Log detail level setting, plus **"Turn on detailed logging for 1 hour"**, which
+  switches itself off
+- Retention settings: diagnostic logs (default 30 days) and audit entries (default
+  1 year), purged by the scheduler
+- **"Create troubleshooting report"**: one Markdown document with versions, enabled
+  modules and non-secret settings, doctor and health results, recent redacted errors
+  with stack traces, and a "What were you trying to do?" box. Shown in full before
+  copying, so the person sees exactly what they share. Made to paste into an AI agent
+  or a GitHub issue.
+
+**Help module (system)**: the basis every later phase adds to
   - Help articles, written as Markdown in `docs/help/` alongside the code and loaded
     into the module on deploy. Searchable. Written so that each tour step matches a
     section of the article.
@@ -343,10 +396,11 @@ module registry, and an audit trail. All of it manageable in the admin.
     reader. Built as our own small Vue component (no tour library), with tours defined
     as data next to the help articles.
 
-**Done when:** you can sign in to `libbynaz.org/admin`, invite a staff user, change
-site settings, and see each action in the audit log; the help articles, the 0.3.0
-release notes and a "Show me how: invite a user" tour work. All verified on test first.
-Role checks are covered by e2e tests against the real API.
+**Done when (0.4.0):** a task scheduled in the admin runs on the expected tick on test
+(and recurrence fixtures pass, including daylight-saving changes); logs older than the
+retention period are purged; a troubleshooting report is generated from a forced error;
+the help articles, the 0.4.0 release notes and a "Show me how: invite a user" tour work.
+All verified on test, then live on prod.
 
 ---
 
@@ -398,8 +452,7 @@ old site's files are retired after one stable release.
 - Public board (approved only; never email or moderation data) and optional
   members-only view
 - Prayer-chain email on approval (configurable list)
-- Expiry / archive of old requests (uses Phase 6 scheduler if it exists; otherwise
-  on-read filtering)
+- Expiry / archive of old requests (a scheduled task, `prayer.archive`)
 - Submitter always sees the same confirmation, whatever happens to the request
 
 **Done when:** a request submitted on test appears in the admin queue, is approved,
@@ -408,27 +461,7 @@ real stack, then on prod.
 
 ---
 
-## Phase 6 — Scheduled tasks + Sermons module → 1.2.0 "Fisher"
-
-### 6a. Scheduled tasks (system module)
-
-**Goal:** Admins schedule recurring jobs in plain language; modules register the jobs.
-
-- **Heartbeat vs schedule:** the single cPanel cron entry ticks every minute. That is
-  only the heartbeat. Each task's own schedule decides whether it runs on a tick.
-- Recurrence options (stored as data, defined in DOMAIN-MODEL):
-  every N minutes/hours/days/weeks · N times per day/week · specific weekdays at a
-  time (e.g. every Monday 18:00, weekdays 16:00) · monthly · advanced cron expression
-- Ends: never · after N runs · on a date
-- Retry policy: max attempts + back-off. Overlap protection (a task never runs twice at once).
-- Times entered in the church's timezone and stored in UTC
-- Admin: list tasks, enable/disable, edit schedule with a human-readable preview
-  ("Every weekday at 4:00 PM — next run Tue Oct 13, 4:00 PM"), **Run now**, run
-  history with status and messages
-- Recurrence logic lives in the PHP core (pure, heavily unit-tested); Laravel only
-  provides the heartbeat command and storage
-
-### 6b. Sermons module
+## Phase 6 — Sermons module → 1.2.0 "Fisher"
 
 **Goal:** Sermons from Logos appear on the site with full detail, replacing the
 Phase 4 embed. The Sermon model will be revisited at plan review.
@@ -453,7 +486,7 @@ overrides survive a re-sync (tested).
 ## Phase 7 — Events module → 1.3.0 "Quartz"
 
 - Events with date/time (timezone-aware), location, description, image, recurring events
-  (reusing the Phase 6 recurrence model)
+  (reusing the Phase 3 recurrence model)
 - Admin CRUD; public calendar/list and detail pages; "Upcoming events" block
 - iCal feed export (subscribe from phone calendars)
 
@@ -466,7 +499,7 @@ overrides survive a re-sync (tested).
 | 8 | **Giving** | Stripe.js holds all card input; webhook signature verified; members see only their own history; no bulk export. Settings via module config. Two "Show me how" tours: setting up giving (admin) and giving a tithe or offering (visitor/member). |
 | 9 | **Member directory** | Member role minimum, never public; consent before listing; per-field visibility; personal data encrypted at rest (column-level); every read audited; no bulk export. |
 | 10 | **External login providers** | Microsoft, Google, Apple via Laravel Socialite (Google is built in; Microsoft and Apple are community-maintained SocialiteProviders, so each needs dependency approval). Group → role mapping lives in the native core. Implements the auth contract's `ExternalIdentity`. |
-| 11 | **Integrations** | Email providers (MS365 Graph, Gmail), calendar sync (Google/Outlook), AI moderation providers (Gloo, Grok), storage (B2/S3). Each one is a source/sink adapter behind a core port. **AI help assistant** (see below). |
+| 11 | **Integrations** | Email providers (MS365 Graph, Gmail), calendar sync (Google/Outlook), AI moderation providers (Gloo, Grok), storage (B2/S3). Each one is a source/sink adapter behind a core port. **AI help assistant** (see below), which can also read a troubleshooting report alongside the help docs to suggest fixes, only when the person clicks to send it. |
 | 12 | **Portability & second backend** | New-church setup guide and installer; Lighthouse ≥ 95; security review; restore FastAPI as `apps/api/fastapi` + `libs/python/native/core`, passing the same contract suite. |
 
 ### AI help assistant (Phase 11) — answers only from approved sources
@@ -476,7 +509,7 @@ overrides survive a re-sync (tested).
   transcripts, events) · external resources an admin adds **by URL** (e.g. official
   Church of the Nazarene pages). Each source can be switched on or off.
 - **No web search, ever.** External URLs are fetched once by our server, stored and
-  indexed in our own database, and refreshed on a schedule (Phase 6 scheduler). At
+  indexed in our own database, and refreshed on a schedule (Phase 3 scheduler). At
   question time the assistant only sees passages retrieved from that index.
 - Every answer **cites its sources** (links). If the sources don't cover the question,
   it says so and points to the contact page instead of guessing.
@@ -524,3 +557,5 @@ Proposed defaults. Each needs your ✅ or a change before the phase that uses it
 | D11 | AI help assistant sources | ✅ Approved knowledge sources only (own content + admin-added URLs, indexed locally); no web search (approved 2026-10-08) | Phase 11 |
 | D12 | Help panel + tour blend | ✅ (approved 2026-10-09): one "? Help" button per page → right-side help panel (full-screen on phones); tours offer "Read this instead"; articles offer "Show me how" | Phase 3 |
 | D13 | Auth across stacks | ✅ (approved 2026-10-09): a ChurchOS **auth contract** in the domain model (objects, flows, endpoints, error codes, cookie rules, password-hash export format). Each backend implements it with its framework's vetted built-in auth. No external identity provider. Independently reviewed 2026-10-09 | Phase 3 |
+| D14 | Diagnostics module | ✅ Logging + reference codes + redaction + doctor checks (Phase 1); admin Diagnostics screen, retention purge and troubleshooting report (Phase 3) (approved 2026-10-09) | Phase 1 |
+| D15 | Scheduler placement | ✅ Scheduled tasks move from Phase 6 to Phase 3; Phase 3 ships as 0.3.0 + 0.4.0 (approved 2026-10-09) | Phase 3 |

@@ -301,6 +301,41 @@ Modules declare their settings in a **manifest** in code; storage holds only val
   that "Read this instead" opens). Invariant: tours and the help panel open only from
   a user action.
 
+### 5.7 Scheduled tasks (Phase 3, release 0.4.0) *(outline — owner request 2026-10-07)*
+
+- `TaskType`: key (e.g. `sermons.sync`), moduleKey, name, description, defaultSchedule
+- `Schedule`: id, taskKey, enabled, recurrence `Recurrence`, timeZone, ends
+  `Enum{never|afterRuns|onDate}` + value, retry `RetryPolicy`, nextRunAt?, lastRunAt?
+- `Recurrence` (discriminated by `kind`):
+  - `interval`: every `Integer` × `Enum{minute|hour|day|week}`
+  - `timesPerPeriod`: `count` × `Enum{day|week}`, spaced evenly or at listed `LocalTime`s
+  - `weekly`: `days: List<Weekday>`, `at: LocalTime` (e.g. Mon 18:00; Mon–Fri 16:00)
+  - `monthly`: day of month or "first Monday", `at: LocalTime`
+  - `cron`: raw expression (advanced)
+- `RetryPolicy`: maxAttempts, backoffMinutes
+- `TaskRun`: id, scheduleId, attempt, status `Enum{running|succeeded|failed|skipped}`,
+  startedAt, finishedAt?, message?
+- Port `RecurrenceCalculator.nextOccurrence(recurrence, timeZone, after): Timestamp?`
+  is pure and must give identical results in every language. The contract suite
+  includes shared fixtures, including the daylight-saving changeovers.
+
+### 5.8 Diagnostics (Phase 1 + Phase 3) *(outline, ✅ D14)*
+
+- `LogEntry`: id, occurredAt, level `Enum{debug|info|notice|warning|error|critical|alert|emergency}`
+  (PSR-3 / RFC 5424), channel `Key`, message, requestId?, context `Map<String, any>`
+  (always redacted), exception `ExceptionInfo?`
+- `ExceptionInfo`: type, message, file?, line?, trace `List<String>`, previous `ExceptionInfo?`
+- `DoctorCheck`: same shape as `HealthCheck` (§4) plus `fix: String?`, a plain-language
+  instruction for fixing the problem
+- `TroubleshootingReport`: generatedAt, version `VersionInfo`, servedBy `ServedBy`,
+  modules `List<{key, enabled, version}>`, nonSecretSettings `Map<Key, any>`,
+  doctor `List<DoctorCheck>`, recentErrors `List<LogEntry>`, userDescription `String?`.
+  Rendered as Markdown for copying.
+- `RetentionPolicy`: diagnosticDays (default 30), auditDays (default 365)
+- **Invariant (redaction):** no `LogEntry`, `TroubleshootingReport` or `AuditEntry` ever
+  contains a password, token, secret setting value, prayer text, or personal data
+  beyond a user's id. Contract fixtures test this in every language.
+
 ---
 
 ## 6. Module domains
@@ -321,25 +356,7 @@ publicly), prayerCount, submittedAt, moderatedAt?, moderatedBy?, updates
 `List<PrayerUpdate>`. Public read model `PublicPrayerRequest` omits every 🔒 and
 moderation field.
 
-### 6.3 Scheduled tasks (Phase 6a) *(outline — owner request 2026-10-07)*
-
-- `TaskType`: key (e.g. `sermons.sync`), moduleKey, name, description, defaultSchedule
-- `Schedule`: id, taskKey, enabled, recurrence `Recurrence`, timeZone, ends
-  `Enum{never|afterRuns|onDate}` + value, retry `RetryPolicy`, nextRunAt?, lastRunAt?
-- `Recurrence` (discriminated by `kind`):
-  - `interval`: every `Integer` × `Enum{minute|hour|day|week}`
-  - `timesPerPeriod`: `count` × `Enum{day|week}`, spaced evenly or at listed `LocalTime`s
-  - `weekly`: `days: List<Weekday>`, `at: LocalTime` (e.g. Mon 18:00; Mon–Fri 16:00)
-  - `monthly`: day of month or "first Monday", `at: LocalTime`
-  - `cron`: raw expression (advanced)
-- `RetryPolicy`: maxAttempts, backoffMinutes
-- `TaskRun`: id, scheduleId, attempt, status `Enum{running|succeeded|failed|skipped}`,
-  startedAt, finishedAt?, message?
-- Port `RecurrenceCalculator.nextOccurrence(recurrence, timeZone, after): Timestamp?`
-  is pure and must give identical results in every language. The contract suite
-  includes shared fixtures, including the daylight-saving changeovers.
-
-### 6.4 Sermons (Phase 6b) *(outline — revisit at plan review, per owner)*
+### 6.3 Sermons (Phase 6) *(outline — revisit at plan review, per owner)*
 
 Known inputs: what you publish to Logos (title, speaker, description, sermon cover,
 mp3), what Logos generates (mp4 with timed slides, transcript), the RSS feed (title,
@@ -351,12 +368,12 @@ audioUrl?, videoUrl?, transcriptUrl?, durationSeconds?, source `SourceRef`),
 `SermonSeries` (id, title, coverImageUrl?), `SourceRef` (provider `Enum{logos|manual}`,
 externalId, url).
 
-### 6.5 Events (Phase 7) *(outline)*
+### 6.4 Events (Phase 7) *(outline)*
 
 `Event` with `LocalDate`/`LocalTime` + `TimeZone`, location, optional recurrence
-(reuses §6.3 `Recurrence`).
+(reuses §5.7 `Recurrence`).
 
-### 6.6 Knowledge sources for the AI help assistant (Phase 11) *(outline)*
+### 6.5 Knowledge sources for the AI help assistant (Phase 11) *(outline)*
 
 - `KnowledgeSource`: id, kind `Enum{helpArticles|siteContent|sermonTranscripts|url}`,
   label, url `Url?` (required for `url`), enabled, refresh `Schedule?`, lastIndexedAt?,
@@ -422,4 +439,4 @@ An implementation conforms when:
 
 | Version | Date | Change |
 |---|---|---|
-| 0.1 *(draft)* | 2026-10-07 | Notation, universal rules, operational objects, core platform objects; module outlines. 2026-10-08: nested repo paths; help, release notes, tours and knowledge-source outlines |
+| 0.1 *(draft)* | 2026-10-07 | Notation, universal rules, operational objects, core platform objects; module outlines. 2026-10-08: nested repo paths; help, release notes, tours and knowledge-source outlines. 2026-10-09: auth contract; scheduled tasks moved to §5.7; diagnostics §5.8 |

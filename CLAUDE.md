@@ -198,6 +198,9 @@ checked server-side. Frontend guards are UX only.
 - **Dependencies:** `composer audit` and `pnpm audit` run in CI; findings block release
 - **CORS:** same-origin by default; any allowed origin is listed explicitly
 - **Database character set:** `utf8mb4` everywhere (the host default is `latin1`)
+- **Logging:** only through the logging port (PSR-3 in PHP). Passwords, tokens, secret
+  values, prayer text and personal data are redacted before anything is written. Users
+  see a reference code, never a stack trace.
 
 ---
 
