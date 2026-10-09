@@ -212,10 +212,11 @@ enough. Phases 8–12 are outlines and will be planned in detail when they come 
 
 - [x] Push all unpushed branches; tag `archive/fastapi-0.x` at `main` (2026-10-07)
 - [ ] Owner reviews and approves PLAN.md, CLAUDE.md, DOMAIN-MODEL.md drafts
-- [x] Decisions D1–D17 resolved and recorded in §Decisions (2026-10-10)
+- [x] Decisions D1–D17 resolved and recorded in §Decisions (2026-10-09)
 - [x] CI green on PR #80 (ruff pinned to 0.15.15)
-- [ ] **Gate — owner:** Railway auto-deploy disconnected from this repo
-  ([runbook](docs/runbooks/github-repository.md) N0). **No Phase 1 code until this is done.**
+- [x] **Gate — owner:** Railway auto-deploy disconnected from this repo
+  ([runbook](docs/runbooks/github-repository.md) N0). Done by owner 2026-10-09; final
+  proof is that the first Phase 1 merge to `main` creates no `railway-app[bot]` deployment.
 - [ ] **Gate — owner:** GitHub settings N1–N6 applied (required checks, merge methods,
   classic protection removed, auto-delete branches, security features, read-only token)
 - [ ] `docs/replan` merged to `dev`
@@ -611,5 +612,5 @@ Proposed defaults. Each needs your ✅ or a change before the phase that uses it
 | D13 | Auth across stacks | ✅ (approved 2026-10-09): a ChurchOS **auth contract** in the domain model (objects, flows, endpoints, error codes, cookie rules, password-hash export format). Each backend implements it with its framework's vetted built-in auth. No external identity provider. Independently reviewed 2026-10-09 | Phase 3 |
 | D14 | Diagnostics module | ✅ Logging + reference codes + redaction + doctor checks (Phase 1); admin Diagnostics screen, retention purge and troubleshooting report (Phase 3) (approved 2026-10-09) | Phase 1 |
 | D15 | Scheduler placement | ✅ Scheduled tasks move from Phase 6 to Phase 3; Phase 3 ships as 0.3.0 + 0.4.0 (approved 2026-10-09) | Phase 3 |
-| D16 | API layouts | ✅ Two configurable layouts: API subdomain (Libby: `api.libbynaz.org`, `api.test.libbynaz.org`) or same-origin `/api`. Host-only session cookie on the API host; CSRF token via `GET {apiBase}/auth/csrf` in a header; explicit CORS allow-list (approved 2026-10-10) | Phase 1 |
-| D17 | Knowledge source kinds | ✅ Page, section (URL-path crawl with a page limit) and sitemap; `robots.txt` respected; same-site only (approved 2026-10-10) | Phase 11 |
+| D16 | API layouts | ✅ Two configurable layouts: API subdomain (Libby: `api.libbynaz.org`, `api.test.libbynaz.org`) or same-origin `/api`. Host-only session cookie on the API host; CSRF token via `GET {apiBase}/auth/csrf` in a header; explicit CORS allow-list (approved 2026-10-09) | Phase 1 |
+| D17 | Knowledge source kinds | ✅ Page, section (URL-path crawl with a page limit) and sitemap; `robots.txt` respected; same-site only (approved 2026-10-09) | Phase 11 |
