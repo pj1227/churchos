@@ -1,11 +1,59 @@
 # Changelog
 
 All notable changes to ChurchOS are documented here.
-Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
+Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format,
+and [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+Every PR that changes behavior, schema, commands, or environment variables adds
+its entry to `## [Unreleased]` under one of Added / Changed / Fixed / Removed.
 
 ---
 
 ## [Unreleased]
+
+### Added
+- RLS migration `h8i9j0k1l2m3` — enables RLS on `site_config` (admin-only),
+  `announcements` and `pages` (public read published / staff write), and
+  `sermon_sync_logs` (staff read only)
+- `tests/test_rls_migration.py` — 17 contract tests asserting the RLS migration
+  SQL grants and policies
+- Branding assets: `docs/libby-logo-v3.svg` and `docs/inkscape-logo-instructions.md`
+- `CLAUDE.md` — "Commands", "Environment variables", "Versioning", "PR flow",
+  and "CI/CD" sections; per-app env var tables sourced from `app/config.py` and
+  both `nuxt.config.ts` files
+- `apps/admin/.env.example` — previously missing
+
+### Changed
+- **Project restart (approved 2026-10-09):** ChurchOS is being re-planned as
+  Nuxt + Laravel with plain-language core libraries, a module system, and
+  test → production releases. The FastAPI + Supabase build is preserved at tag
+  `archive/fastapi-0.x`. `PLAN.md` and `CLAUDE.md` rewritten;
+  `docs/design/DOMAIN-MODEL.md` added. Decisions D1–D15 recorded in `PLAN.md`
+  (layout, hosting, releases, auth contract, help, diagnostics, scheduler)
+- `CLAUDE.md` is now the single source of truth for project conventions;
+  `churchos-cowork-instructions.md` reduced to a pointer, with its roadmap
+  content folded into `PLAN.md`
+- Design system section now defers to `packages/config/src/tokens.css` instead
+  of restating hex values
+- Test-suite tables corrected against actual runs: API 137 tests (10 files),
+  admin 91 (10 files), web 53, `packages/ui` 33
+- `apps/api/.env.example` and `apps/web/.env.example` rewritten to match the
+  variable names the code actually reads
+
+### Fixed
+- CI: pinned `ruff==0.15.15` in `apps/api/requirements.txt`. The unpinned `ruff>=0.4.0`
+  resolved to 0.16.10, whose new default rules failed 176 checks in the archived code
+- Tailwind v4 dark mode — added the explicit
+  `@variant dark (&:where(.dark, .dark *));` override to both apps' `main.css`
+  so `dark:` utilities follow the `.dark` class from `@nuxtjs/color-mode`
+  instead of the OS `prefers-color-scheme` media query
+- `CoCard` / `CoCardFeatured` — card titles now use dark-mode-aware colors
+- `test_rls_migration.py` — removed unused imports flagged by ruff (F401)
+
+### Removed
+- Stale env vars from `.env.example` files that nothing reads:
+  `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `REDIS_URL`, `CHURCH_NAME`,
+  `ENVIRONMENT`, `GLOO_*` (now stored in `site_config`, not env)
 
 ---
 

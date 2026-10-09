@@ -1,264 +1,245 @@
 # ChurchOS — CLAUDE.md
 
-Project context and conventions for AI-assisted development.
-This file is the source of truth for any new session.
+> **Status: Approved** by the owner 2026-10-09 (PR #80)
+
+Project conventions for AI-assisted and human development.
+**This file is the single source of truth for how we work.**
+
+| Doc | Owns |
+|---|---|
+| [PLAN.md](PLAN.md) | Roadmap, phases, done criteria, open decisions |
+| [docs/design/DOMAIN-MODEL.md](docs/design/DOMAIN-MODEL.md) | What the data looks like, in every language (normative) |
+| [CHANGELOG.md](CHANGELOG.md) | What shipped |
 
 ---
 
 ## What this is
 
-ChurchOS is a modular, open-source church CMS built for Libby Church of the Nazarene
-and designed for multi-church deployment. It replaces the active church website.
+ChurchOS is a modular, open-source church CMS. It is built first for Libby Church of
+the Nazarene, where it will replace https://libbynaz.org, and is designed so any
+church can self-host it on inexpensive cPanel shared hosting.
 
-**Version:** 0.1.0 pre-release — Release 1.0.0 is named "Kootenai"
+**State of the repo (2026-10-09):** plan approved; Phase 1 is next. The project is restarting as
+**Nuxt + Laravel**. The previous FastAPI + Supabase build is preserved at git tag
+`archive/fastapi-0.x`, and its code is still in the working tree until Phase 1 clears
+it. Do not extend that code. Restore pieces from the tag only when a phase plan says so:
 
----
-
-## Stack
-
-| Layer        | Technology                                      |
-|--------------|-------------------------------------------------|
-| Frontend     | Nuxt 4, Tailwind CSS v4                         |
-| Backend      | FastAPI (Python 3.12), Supabase (PostgreSQL)    |
-| Auth         | Supabase Auth, JWT (PyJWT), RBAC                |
-| Monorepo     | pnpm workspaces + Turborepo                     |
-| Frontend CD  | Cloudflare Pages                                |
-| Backend CD   | Railway.app                                     |
-| Cache        | Upstash Redis                                   |
-| Storage      | Backblaze B2                                    |
-
----
-
-## Monorepo structure
-
-```
-apps/
-  web/      — Public-facing Nuxt 4 site (homepage, sermons, events, contact)
-  admin/    — Admin dashboard Nuxt 4 app (CRUD, content management)
-  api/      — FastAPI backend
-packages/
-  ui/       — Shared component library (design tokens, reusable Vue components)
-  config/   — Shared TypeScript/ESLint/Tailwind configs
+```bash
+git checkout archive/fastapi-0.x -- apps/api     # example: bring the FastAPI app back
 ```
 
 ---
 
-## Non-negotiable rules
+## Workflow (non-negotiable)
 
-- **TDD always.** Write a failing test before any implementation. No exceptions.
-- **Explain every file.** What it does, why it exists, how it connects.
-- **Incremental and verified.** One piece at a time, confirm it works, then move on.
-- **Commit often.** git add → commit → push after each meaningful working unit.
+Every phase and feature follows these steps in order. Nothing is skipped because a
+change "looks small".
+
+1. **Plan review before development.** Expand the phase from PLAN.md into a detailed
+   plan (domain objects, endpoints, screens, tests, dependencies, risks) and present
+   it to the owner. No branch and no code until the owner approves.
+2. **Docs change first.** Agreed adjustments go into PLAN.md, DOMAIN-MODEL.md and the
+   contract schemas *before* implementation, in a reviewed PR.
+3. **Branch + failing tests.** Create `feature/phase-N-description` from `dev`. Write
+   the tests for the iteration (unit, contract, end-to-end including UI behaviour),
+   commit them, and confirm they fail for the expected reason.
+4. **Show before writing.** Before creating or changing any file (tests, application
+   code, config, build or CI files), show the owner the complete code with an
+   explanation of what it does, why it exists, and how it connects. Write it only after
+   approval. This includes adding a dependency.
+5. **Dependency approval.** Every new third-party package (Composer, npm, pip, GitHub
+   Action) needs explicit owner approval, with: what it does, why the language or
+   framework built-ins aren't enough, maintenance and security status, and licence.
+6. **Native first.** Build in the plain language library (`libs/<lang>/…`) first.
+   Framework code (Laravel, Nuxt, …) stays a thin adapter: routing, HTTP, storage
+   wiring, configuration. No business rules in framework code.
+7. **Test against the real backend.** Unit tests may use test doubles, but every
+   phase also has end-to-end tests where a real browser drives the real frontend
+   against the real API and a real database. A feature isn't working until those pass.
+8. **Contrast gate.** UI changes must pass the automated WCAG AA contrast check in
+   light and dark mode.
+9. **CI/CD for everything that can be automated.** Lint, static analysis, tests,
+   builds, deploys, migrations and post-deploy health checks run in GitHub Actions.
+   Manual steps are temporary and written up as a runbook.
+   - **Never merge on red.** Every CI job is a required check in the branch rulesets
+     ([runbook](docs/runbooks/github-repository.md)); a failing check is fixed, not bypassed.
+   - **Pin versions.** Every dependency and tool (linters, formatters, test runners,
+     GitHub Actions) is pinned by lockfile or exact version, so a passing build can't
+     start failing by itself. Upgrades arrive as their own reviewed PRs.
+10. **Done means live.** A phase is complete only when it has been verified by the
+    owner in the UI on test.libbynaz.org **and** released to libbynaz.org. Every done
+    criterion is checked off at release; ✅ is never set with open items.
+11. **Docs move with code.** Any change to behaviour, schema, commands or env vars
+    updates the relevant doc and `CHANGELOG.md` (`## [Unreleased]`) in the same PR.
+    Docs describe what the code *does*, not what it is meant to do.
+12. **Help ships with the feature** (from Phase 3 on). Every user-facing change adds
+    or updates its help article in `docs/help/`, adds an entry to that release's
+    release notes, and, when a task has several steps, a "Show me how" guided tour.
+    Tours only start when someone clicks them. No "new" badges.
+13. **Commit often** on the feature branch: one working, tested unit per commit.
 
 ---
 
-## Git workflow
+## Coding standards
 
-- `feature/*` branches cut from `dev`
-- Merge path: `feature/*` → `dev` → `staging` → `main`
-- `main`, `staging`, `dev` are protected — PRs only, CI must pass
-- Never commit directly to `staging` or `main`
-- Branch naming: `feature/phase-N-description` or `fix/short-description`
+Follow the established standard of **the layer the file belongs to**. Where a
+framework's convention differs from its language's, framework code follows the
+framework, and plain-language libraries follow the language. Formatters and linters
+enforce this in CI; nothing is formatted by hand.
+
+| Layer | Standard | Enforced by (pending approval) |
+|---|---|---|
+| Plain PHP (`libs/php/native/*`) | PSR-4 autoloading, **PER Coding Style 2.0**, strict types, `final readonly` value objects | Pint (`per` preset), PHPStan (max level) |
+| Laravel (`apps/api/laravel`) | Laravel conventions (e.g. Eloquent attributes are `snake_case` column names, while plain PHP properties are `camelCase`) | Pint (`laravel` preset), PHPStan + Larastan |
+| Plain TypeScript (`libs/ts/native/core`) | `strict` tsconfig, ESM, no framework imports | ESLint (typescript-eslint), Prettier |
+| Vue (`libs/ts/vue/ui`) | Official Vue style guide (priority A–C), `<script setup lang="ts">` | eslint-plugin-vue |
+| Nuxt (`apps/web/nuxt`, `apps/admin/nuxt`) | Nuxt directory and auto-import conventions | @nuxt/eslint |
+| Python (later) | PEP 8, typed | ruff, mypy |
+| SQL | `snake_case`, plural table names | migration review |
+| JSON (transport) | `camelCase` fields, always-present nullables | contract schemas |
+
+Every file starts with a short header comment: what it does, why it exists, and how
+it connects.
+
+---
+
+## Stack (target)
+
+| Layer | Technology |
+|---|---|
+| Public site | Nuxt (Vue 3), statically generated |
+| Admin | Nuxt (Vue 3), static SPA |
+| API | Laravel on PHP 8.4, over `libs/php/native/core` |
+| Database | MariaDB 11.4 (default); PostgreSQL supported via config |
+| Auth | Laravel session auth via Sanctum (cookie-based SPA auth) |
+| Tests | PHPUnit · Vitest · contract suite · end-to-end browser tests |
+| Monorepo | pnpm workspaces + Turborepo; Composer for PHP |
+| CI/CD | GitHub Actions → SSH deploy to Namecheap |
+| Hosting | Namecheap Stellar Business (cPanel, PHP selector, MariaDB, SSH, cron) |
+
+Nothing in this table is scaffolded yet. Phase 1 builds it.
+
+---
+
+## Repository layout (target)
+
+See [PLAN.md §2](PLAN.md#2-architecture-at-a-glance). Two rules:
+
+- **Apps:** `apps/<role>/<framework>`, e.g. `apps/web/nuxt`, `apps/admin/nuxt`, `apps/api/laravel`.
+- **Libraries:** `libs/<language>/<platform>/<name>`, where `native` means no framework,
+  e.g. `libs/php/native/core`, `libs/ts/native/core`, `libs/ts/vue/ui`. Language-neutral
+  assets live in `libs/shared/` (`contract`, `theme`). The folder states what a library
+  may depend on.
+
+---
+
+## Environments & hosting
+
+| Env | Site + admin | API | Deployed from |
+|---|---|---|---|
+| dev | `localhost` | `localhost:8000` | working branch |
+| test | `https://test.libbynaz.org` | `https://api.test.libbynaz.org` | `staging` (automatic) |
+| prod | `https://libbynaz.org` | `https://api.libbynaz.org` | `main` (automatic) |
+
+Per environment: `/` = public site, `/admin` = admin. The API runs on an `api.`
+subdomain (Libby) or at `/api` on the same domain; the layout is configuration
+(PLAN D16), and every API path is written relative to `{apiBase}`. Laravel code
+lives outside `public_html`. Background work runs from one cPanel cron entry (every
+minute) that invokes the ChurchOS scheduler. Secrets live only in server-side `.env`
+files and GitHub Actions secrets, never in git.
+
+---
+
+## Git workflow & releases
+
+- `feature/phase-N-description` or `fix/short-description`, cut from `dev`
+- `feature/*` → `dev` (CI) → `staging` (test, every two weeks) → `main` (prod, after owner sign-off)
+- `main`, `staging`, `dev` are protected: PRs only, all CI jobs required
+- Hotfix: `fix/*` from `main`, merged back into `staging` and `dev`
+- Release PR (`staging` → `main`) bumps `version.json`, finalises CHANGELOG, and is tagged `vX.Y.Z`
+- No orphan work: every branch is merged, or deleted with a note in its PR
+
+Commit messages: Conventional Commits (`feat(prayer): …`, `fix(api): …`, `docs: …`).
+
+---
+
+## Versioning
+
+Semantic versioning. Release codenames follow Kootenai River Valley geography (rivers,
+creeks, lakes and mountains), one per minor release: **1.0.0 Kootenai** (cutover) → 1.1.0 Cabinet → 1.2.0 Fisher →
+1.3.0 Quartz → … → 2.0.0 Yaak (first breaking change). Version map: PLAN.md §2.
+
+`version.json` is the only place the version is written. The site footer, the admin
+badge and `GET {apiBase}/health` read it; they never hardcode it.
 
 ---
 
 ## RBAC roles
 
-`superadmin → admin → staff → member → guest`
-
-Enforced in `apps/api/app/dependencies/rbac.py` via `require_role()`.
+`superadmin → admin → staff → member → guest`. Authorization rules live in
+`libs/php/native/core`; Laravel policies call them. Every protected endpoint is
+checked server-side. Frontend guards are UX only.
 
 ---
 
 ## Security requirements (always enforce)
 
-- Access tokens in memory only — never localStorage
-- Refresh tokens in HttpOnly cookies only
-- JWT verified server-side on every protected endpoint
-- RLS active on all sensitive Supabase tables
-- PII encrypted at rest (AES-256, column-level)
-- Rate limiting via Redis on all write endpoints
-- Prayer submissions AI-moderated before going public
-- Directory requires member role minimum — never public
-- No bulk export endpoint for directory or giving records
-- Stripe.js handles all card input — card data never touches our API
+- **Sessions:** server-side sessions in a host-only `__Host-` cookie on the API host
+  (Secure, HttpOnly, SameSite=Lax, no Domain). Never set cookies on `.libbynaz.org`,
+  so production cookies can't reach test. No credentials in `localStorage`,
+  `sessionStorage` or JS-readable cookies.
+- **CSRF:** the token comes from `GET {apiBase}/auth/csrf`, is held in memory, and is
+  sent as the `X-CSRF-TOKEN` header on every state-changing request
+- **Auth contract:** every backend implements the auth contract in DOMAIN-MODEL §5.0
+  using its framework's own vetted auth. No hand-written session, token or crypto code.
+- **Passwords:** PHP `password_hash` (Argon2id/bcrypt); login throttling; two-factor
+  sign-in for staff and above (PLAN D9)
+- **Least privilege:** the browser never talks to the database. All data access
+  goes through the API.
+- **Secrets at rest:** secret settings encrypted (Laravel encrypted casts), never
+  returned to the browser, and masked in the admin
+- **Personal data:** column-level encryption for directory data (Phase 9); no bulk
+  export endpoint for directory or giving records
+- **Rate limiting** on every public write endpoint, keyed on the real client IP
+  (proxy-aware)
+- **Prayer requests are `pending` until a person approves them.** Automation may only label.
+- **Card data never touches our servers.** Stripe.js handles all card input.
+- **Dependencies:** `composer audit` and `pnpm audit` run in CI; findings block release
+- **CORS:** only the environment's own site origin is allowed, with credentials; no
+  wildcards (not needed at all in the same-origin layout)
+- **Database character set:** `utf8mb4` everywhere (the host default is `latin1`)
+- **Logging:** only through the logging port (PSR-3 in PHP). Passwords, tokens, secret
+  values, prayer text and personal data are redacted before anything is written. Users
+  see a reference code, never a stack trace.
 
 ---
 
 ## Design system
 
-**Colors:** forest-500 (#2d6a4f) primary · kootenai-500 (#3a7d8c) secondary ·
-gold-500 (#c9962b) accent · charcoal-900 (#0a1012) dark · stone-50 (#faf8f5) light
+The original Kootenai palette is being restored in Phase 2 (drift analysis in
+PLAN.md). Until then, the authoritative references are:
 
-**Fonts:** Cinzel (display/h1-h2) · Lora (body/scripture) · DM Sans (UI/nav/buttons)
+- Original palette: `/home/pj/projects/churchos-v7-archive/packages/config/tailwind.config.ts`
+- Archived tokens: `packages/config/src/tokens.css` (in the archive tag; shows the drift)
 
-**Dark mode:** class strategy via @nuxtjs/color-mode
-
-**Component classes:** `btn-primary`, `btn-secondary`, `btn-ghost`, `co-card`,
-`co-card-featured`, `co-container`, `co-section`, `scripture-callout`,
-`badge-forest`, `badge-kootenai`, `badge-gold`, `form-input`, `form-label`
-
----
-
-## Deployed infrastructure
-
-| Service         | URL / Location                                           |
-|-----------------|----------------------------------------------------------|
-| API (prod)      | https://churchos-production-c6ae.up.railway.app          |
-| Public site     | Cloudflare Pages — `churchos` project                    |
-| Admin           | Cloudflare Pages — `churchos` project                    |
-| Supabase        | churchos-libbynaz project                                |
-
-### Railway environment variables (all required)
-
-| Variable              | Value / Source                               |
-|-----------------------|----------------------------------------------|
-| `CHURCH_ID`           | `default` (id of Libby Naz in public.churches) |
-| `SUPABASE_URL`        | Supabase project URL                          |
-| `SUPABASE_SERVICE_KEY`| Supabase **secret key** (formerly service role) |
-| `SUPABASE_JWT_SECRET` | Supabase Settings → API → JWT Settings        |
-
-> **Note:** Supabase renamed keys in 2025: "publishable" = anon key, "secret" = service role key.
+Principles that carry over: forest green (primary), Kootenai teal (secondary),
+stained-glass gold (accent), teal-tinted charcoal (dark surfaces), warm river stone
+(light surfaces). Fonts: Cinzel (display), Lora (body, scripture), DM Sans (UI).
+Components use **semantic** tokens, never raw palette values, so another church can
+rebrand by editing tokens only.
 
 ---
 
-## Deployment architecture (important)
+## Domain model
 
-ChurchOS is a **single-tenant, portable CMS**. Each church gets its own isolated
-deployment — their own Supabase project, Railway service, and Cloudflare account.
-There is no shared database and no cross-church data isolation needed in code.
-
-Phase 9 ("Multi-church support") means **portability and easy self-hosting**, not
-multi-tenancy. A church downloads the repo, sets up their own accounts, and deploys.
-
-Consequence: `church_id` on every table is a per-deployment constant (always
-`"default"`), not a tenant discriminator. It stays for self-documentation and
-sanity-checking configuration, but queries are never filtering across church IDs.
+[docs/design/DOMAIN-MODEL.md](docs/design/DOMAIN-MODEL.md) is normative. If code
+disagrees with it, the code is wrong, or the document is changed first through its
+change process. Transport JSON is `camelCase` with always-present nullables; storage
+is `snake_case`; in-code names follow the language or framework standard above.
 
 ---
 
-## Supabase schema notes
+## Commands
 
-### Primary key conventions
-- `churches.id` — VARCHAR, value `"default"` — intentional singleton config row
-- `sermons.id` — VARCHAR(36) — Logos-sync assigned; do not change PK type
-- `church_events.id` — being migrated to UUID (table is empty, no external IDs)
-- `prayer_requests.id` and all future tables — UUID with `DEFAULT gen_random_uuid()`
-
-### Per-table notes
-- `public.churches` — singleton row; `id = "default"` for Libby Naz
-- `public.sermons` — Logos-synced; `church_id` FK; use PATCH not PUT
-- `public.church_events` — manually managed; migrating PK to UUID
-- `public.prayer_requests` — Phase 5; UUID PK; RLS enabled; full schema in migration d4e5f6a7b8c9
-- `public.profiles` — RBAC roles stored here; linked to `auth.users` (UUID)
-- **RLS:** All tables now have RLS enabled. Migration `h8i9j0k1l2m3` covers
-  `site_config` (admin-only), `announcements` and `pages` (public read published /
-  staff write), `sermon_sync_logs` (staff read only). `alembic_version` is a
-  system table — not accessible via PostgREST, no RLS needed.
-
----
-
-## Phase status
-
-| Phase | Name                          | Status         |
-|-------|-------------------------------|----------------|
-| 0     | Repo & tooling                | ✅ Complete     |
-| 1     | Design system                 | ✅ Complete     |
-| 2     | Public website                | ✅ Complete (mock data — wired to API in Phase 12) |
-| 3     | Supabase auth & database      | ✅ Complete     |
-| 4     | Admin dashboard               | ✅ Complete     |
-| 5     | Prayer board                  | ✅ Complete     |
-| 5b    | Prayer board completion       | ✅ Complete     |
-| 6     | Connector framework           | ✅ Complete     |
-| 7     | Gloo AI integration           | ✅ Complete     |
-| 8     | Giving module (Stripe)        | ⬜ Not started  |
-| 9     | Member directory              | ⬜ Not started  |
-| 10    | Auth providers (MS365/Google) | ⬜ Not started  |
-| 11    | Advanced connectors           | ⬜ Not started  |
-| 12    | Polish & hardening            | ⬜ Not started  |
-
----
-
-## Connector framework (Phases 6–7)
-
-Connector categories use Python ABCs so providers are swappable via `site_config`
-with no code changes. The registry reads the provider key at call time.
-
-```
-apps/api/app/connectors/
-  base/email.py              — EmailConnector ABC
-  base/ai.py                 — AiConnector ABC
-  providers/email/smtp.py    — SmtpEmailConnector (default, env-var driven)
-  providers/email/ms365.py   — Ms365EmailConnector (Graph API, OAuth2)
-  providers/ai/grok.py       — GrokAiConnector (grok-3-mini, OpenAI-compatible API)
-  providers/ai/gloo.py       — GlooAiConnector (faith-context, OAuth2 client credentials)
-  registry.py                — get_email_connector() + get_ai_connector() factories
-```
-
-**Active providers** are set in `site_config` table:
-
-| Key                   | Values            | Default |
-|-----------------------|-------------------|---------|
-| `email_provider`      | `smtp` / `ms365`  | `smtp`  |
-| `ms365_tenant_id`     | Azure tenant UUID | —       |
-| `ms365_client_id`     | Azure app UUID    | —       |
-| `ms365_client_secret` | Secret (masked)   | —       |
-| `ms365_sender`        | Licensed mailbox  | —       |
-| `ai_provider`         | `grok` / `gloo`   | `grok`  |
-| `grok_api_key`        | xAI API key       | —       |
-| `gloo_client_id`      | Gloo OAuth2 ID    | —       |
-| `gloo_client_secret`  | Gloo OAuth2 secret (masked) | — |
-| `gloo_tradition`      | e.g. `nazarene`, `evangelical` | — |
-
-Configurable in admin Settings → Email Connector and AI Moderation sections.
-Email fallback: unknown or misconfigured provider always falls back to SMTP.
-AI fallback chain: Gloo (if configured) → Grok → fail-open (approve submission).
-
----
-
-## Admin test suite (apps/admin)
-
-83 tests across 10 files — run with `cd apps/admin && pnpm test`
-
-| File                          | Tests | What it covers                        |
-|-------------------------------|-------|---------------------------------------|
-| tests/placeholder.test.ts     | 1     | Vitest smoke test                     |
-| tests/stores/auth.test.ts     | 8     | Pinia auth store                      |
-| tests/layouts/AdminLayout.test.ts | 8 | Sidebar, topbar, slot, sign-out       |
-| tests/pages/DashboardPage.test.ts | 3 | Welcome page, quick-nav cards         |
-| tests/pages/SermonsIndexPage.test.ts | 7 | Sermon list, badges, edit links    |
-| tests/pages/SermonEditPage.test.ts  | 10 | Edit form, PATCH, feedback          |
-| tests/pages/EventsIndexPage.test.ts | 7 | Event list, badges, edit links     |
-| tests/pages/EventEditPage.test.ts   | 8 | Edit form, PATCH, feedback          |
-| tests/pages/PrayerQueuePage.test.ts | 16 | Moderation queue, approve/reject    |
-| tests/pages/SettingsPage.test.ts    | 15 | Prayer chain email, connector UI    |
-
-**Important vitest gotcha:** `useRoute` is stubbed as a global in `tests/setup.ts`.
-Components must NOT import from `#app` — use Nuxt auto-imports (no import statement).
-Test files override with `vi.stubGlobal('useRoute', () => ({ params: { id: '...' } }))`.
-
----
-
-## API test suite (apps/api)
-
-Run with `cd apps/api && python -m pytest --tb=short`
-
-- `tests/test_auth.py` — JWT verification, RBAC, profile lookup
-- `tests/test_sermons.py` — Sermon CRUD endpoints (37 tests)
-- `tests/test_events.py` — Event CRUD endpoints
-- `tests/test_prayer_requests.py` — Prayer board endpoints (24 tests)
-- `tests/test_site_config.py` — Site config CRUD endpoints
-- `tests/test_connectors.py` — Connector ABCs, SMTP, MS365, registry (14 tests)
-- `tests/test_rls_migration.py` — Contract tests verifying RLS migration SQL
-
-**Important:** Uses `PyJWT` (not `python-jose`). Import as `import jwt` and
-catch `jwt.exceptions.InvalidTokenError` (not `JWTError`).
-
----
-
-## Known issues / tech debt
-
-- Public website (Phase 2) still uses mock sermon/event data — wire to API in Phase 10
-- Alembic migrations not yet stamped against existing Supabase tables (need `alembic stamp b2c3d4e5f6a7`)
-- Logos sync not yet active (sermons exist in DB from prior manual work)
-- Admin app is `ssr: false` (client-only SPA) — `@pinia/nuxt 0.11.3` required for Nuxt 4 compatibility
+None yet. Phase 1 adds and verifies them, then records them here. Do not document a
+command until it has been run successfully.

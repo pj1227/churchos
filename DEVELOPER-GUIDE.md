@@ -129,11 +129,15 @@ cp .env.example .env
 
 Edit `.env` and fill in your values:
 
+> The full, per-app variable reference is in
+> [CLAUDE.md → Environment variables](CLAUDE.md#environment-variables).
+
 ```bash
 # Required for local dev (get from your Supabase project → Settings → API)
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_KEY=your-secret-key
 SUPABASE_JWT_SECRET=your-jwt-secret
+CHURCH_ID=default
 
 # Optional — leave blank to skip rate limiting locally
 UPSTASH_REDIS_URL=
@@ -148,25 +152,30 @@ SMTP_USER=
 SMTP_PASSWORD=
 ```
 
-Install Python dependencies:
+Install Python dependencies into a virtualenv. The repo expects it at
+`apps/api/.venv` — `pytest`, `ruff`, and `alembic` are not available otherwise:
 
 ```bash
 cd apps/api
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
 ### Step 3 — Set up the frontend environments
 
+The two apps read different variables — `apps/web` talks only to the API, while
+`apps/admin` talks to Supabase directly.
+
 ```bash
 cd apps/web
 cp .env.example .env.local
 # Set NUXT_PUBLIC_API_BASE=http://localhost:8000
-# Set NUXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-# Set NUXT_PUBLIC_SUPABASE_ANON_KEY=your-publishable-key
 
 cd apps/admin
 cp .env.example .env.local
-# Same variables as apps/web
+# Set NUXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+# Set NUXT_PUBLIC_SUPABASE_ANON_KEY=your-publishable-key
 ```
 
 ### Step 4 — Start the development servers
@@ -436,11 +445,12 @@ Write a failing test before writing implementation code. Every time. A phase is 
 
 ### API tests (pytest)
 
-Run from `apps/api`:
+Run from `apps/api`, with the virtualenv active:
 
 ```bash
 cd apps/api
-python -m pytest --tb=short
+source .venv/bin/activate
+pytest --tb=short          # 137 tests
 ```
 
 The test suite uses a hermetic setup — no real Supabase project is contacted:
@@ -728,9 +738,10 @@ Brief description of the change.
 
 ## Checklist
 - [ ] Tests written first (TDD)
-- [ ] All tests pass (`turbo test`)
+- [ ] JS tests pass (`pnpm test --filter='!@churchos/api'`)
+- [ ] Python tests pass (`cd apps/api && source .venv/bin/activate && pytest`)
 - [ ] No regressions in adjacent tests
-- [ ] CHANGELOG.md updated
+- [ ] CHANGELOG.md updated under `## [Unreleased]`
 ```
 
 ---
@@ -741,9 +752,12 @@ Brief description of the change.
 
 | Branch | Environment | Services |
 |---|---|---|
-| `main` | Production | Cloudflare Pages (prod) + Railway (prod API) |
-| `staging` | Staging | Cloudflare Pages (staging) + Railway (staging API) |
+| `main` | Production | Cloudflare Pages (prod, `apps/web` only) + Railway (prod API) |
+| `staging` | Staging | Cloudflare Pages (`churchos-staging`, `apps/web` only). Railway staging is **not configured** — the workflow step is a no-op. |
 | `dev` | CI only | Runs tests on PR; no deployed environment |
+
+Neither deploy workflow runs migrations (`alembic upgrade head` is commented out
+in both) and neither builds `apps/admin`. Both are manual steps today.
 
 ### Railway (API)
 
@@ -768,17 +782,24 @@ The production API is at: `https://churchos-production-c6ae.up.railway.app`
 
 ### Cloudflare Pages (frontend)
 
-Both `apps/web` and `apps/admin` deploy to the `churchos` project on Cloudflare Pages.
+`apps/web` deploys to the `churchos` project (production, on push to `main`) and
+`churchos-staging` (on push to `staging`).
+
+> `apps/admin` is **not** wired into CD yet — no workflow builds or deploys it.
+> Deploying it today means running `wrangler pages deploy` by hand.
 
 **Build settings for each app:**
 - Build command: `pnpm build`
 - Output directory: `.output/public`
 - Root directory: `apps/web` (or `apps/admin`)
 
-**Environment variables required:**
+**Environment variables required** — the two apps read different sets:
 
 ```bash
+# apps/web
 NUXT_PUBLIC_API_BASE=https://your-api.up.railway.app
+
+# apps/admin
 NUXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NUXT_PUBLIC_SUPABASE_ANON_KEY=your-publishable-key
 ```
@@ -786,11 +807,14 @@ NUXT_PUBLIC_SUPABASE_ANON_KEY=your-publishable-key
 ### Running the full test suite before deploying
 
 ```bash
-# From repo root
-turbo test
+# From repo root — the api workspace must be filtered out, because its turbo
+# `test` script shells out to pytest, which is not on PATH outside the venv.
+pnpm test --filter='!@churchos/api'
+
+# Python side, separately:
+cd apps/api && source .venv/bin/activate && pytest --tb=short
 
 # Or individually:
-cd apps/api && python -m pytest --tb=short
 cd apps/admin && pnpm test
 cd apps/web && pnpm test
 ```
