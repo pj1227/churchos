@@ -206,7 +206,7 @@ enough. Phases 8–12 are outlines and will be planned in detail when they come 
 
 - [x] Push all unpushed branches; tag `archive/fastapi-0.x` at `main` (2026-10-07)
 - [ ] Owner reviews and approves PLAN.md, CLAUDE.md, DOMAIN-MODEL.md drafts
-- [ ] Decisions D1–D12 resolved and recorded in §Decisions
+- [ ] Decisions D1–D13 resolved and recorded in §Decisions
 - [ ] `docs/replan` merged to `dev`
 
 ---
@@ -292,11 +292,24 @@ shell are verified on test and live on prod (`/admin`, `/design` only).
 **Goal:** Everything modules depend on: login, users, roles, site settings, the
 module registry, and an audit trail. All of it manageable in the admin.
 
-- Auth: Laravel's first-party cookie-based SPA auth (Sanctum, ⚖ D7). Session in an
-  HttpOnly cookie, CSRF-protected; no tokens in JS-readable storage.
-- Passwords hashed with PHP's native `password_hash` (Argon2id where available);
+- **Auth follows the ChurchOS auth contract** (✅ D7, D13; DOMAIN-MODEL §5.0). It is
+  implemented here with Laravel's own session auth: Sanctum (SPA cookie mode) and Fortify
+  (2FA, password reset, password confirmation), both first-party packages needing
+  dependency approval. Thin ChurchOS controllers sit in front of Fortify, so responses
+  match the contract (camelCase, our error codes) rather than Laravel's defaults.
+- Session cookie: host-only `__Host-` cookie (Secure, HttpOnly, SameSite=Lax, no
+  Domain), so test.libbynaz.org and libbynaz.org can never share a session. Session ID
+  regenerated on sign-in and role change; idle and absolute timeouts enforced on the
+  server. The CSRF cookie is readable by page scripts by design; it is not a credential.
+- `Referrer-Policy` must stay `strict-origin-when-cross-origin` or looser (Sanctum
+  needs the Origin/Referer header). An e2e test guards this.
+- Passwords hashed with PHP's native `password_hash`: **Argon2id** (confirm the host's
+  PHP has Argon2 support in Phase 1; fall back to bcrypt with a 64-character password cap);
   login throttling; password reset and email verification
-- Two-factor sign-in (authenticator-app codes) required for staff and above; optional for members (✅ D9)
+- Two-factor sign-in (authenticator-app codes + one-time recovery codes) required for staff
+  and above; optional for members (✅ D9). An admin can reset another person's 2FA
+  (audited), because recovery matters more than the method for an older congregation.
+  Passkeys are a possible later addition.
 - Roles `superadmin → admin → staff → member → guest`. The authorization rules live in
   the PHP core; Laravel policies only call them. Enforced in the API.
 - Admin: sign in/out, password reset (email), user list, invite user, change role,
@@ -452,7 +465,7 @@ overrides survive a re-sync (tested).
 |---|---|---|
 | 8 | **Giving** | Stripe.js holds all card input; webhook signature verified; members see only their own history; no bulk export. Settings via module config. Two "Show me how" tours: setting up giving (admin) and giving a tithe or offering (visitor/member). |
 | 9 | **Member directory** | Member role minimum, never public; consent before listing; per-field visibility; personal data encrypted at rest (column-level); every read audited; no bulk export. |
-| 10 | **External login providers** | Microsoft, Google, Apple via Laravel's first-party OAuth package (Socialite — dependency approval); group → role mapping. |
+| 10 | **External login providers** | Microsoft, Google, Apple via Laravel Socialite (Google is built in; Microsoft and Apple are community-maintained SocialiteProviders, so each needs dependency approval). Group → role mapping lives in the native core. Implements the auth contract's `ExternalIdentity`. |
 | 11 | **Integrations** | Email providers (MS365 Graph, Gmail), calendar sync (Google/Outlook), AI moderation providers (Gloo, Grok), storage (B2/S3). Each one is a source/sink adapter behind a core port. **AI help assistant** (see below). |
 | 12 | **Portability & second backend** | New-church setup guide and installer; Lighthouse ≥ 95; security review; restore FastAPI as `apps/api/fastapi` + `libs/python/native/core`, passing the same contract suite. |
 
@@ -504,9 +517,10 @@ Proposed defaults. Each needs your ✅ or a change before the phase that uses it
 | D4 | Version map | ✅ 0.x pre-cutover; **1.0.0 Kootenai = cutover**; one codename per minor release, drawn from local rivers, creeks and mountains (approved 2026-10-08) | Phase 1 |
 | D5 | FastAPI code in the working tree | ✅ Remove; it stays in the archive tag (approved 2026-10-09) | Phase 1 |
 | D6 | E2E browser test tool | ✅ Playwright (approved 2026-10-09). No Storybook for now: the `/design` page, component tests and Playwright screenshot comparisons cover it | Phase 1 |
-| D7 | Auth | Laravel Sanctum cookie-based SPA auth (first-party) | Phase 3 |
+| D7 | Auth (Laravel) | ✅ Sanctum SPA cookie auth + Fortify for 2FA/reset, behind contract controllers (approved 2026-10-09) | Phase 3 |
 | D8 | Rebuild the static site on publish | ✅ Rebuild via GitHub Actions on publish; live API data for frequently changing parts; instant admin preview (approved 2026-10-09) | Phase 4 |
 | D9 | Two-factor sign-in | ✅ Required for staff and above; optional for members (approved 2026-10-09) | Phase 3 |
 | D10 | Help experience | ✅ Release-notes banner + on-request "Show me how" tours; no "new" badges, no automatic tours (approved 2026-10-08) | Phase 3 |
 | D11 | AI help assistant sources | ✅ Approved knowledge sources only (own content + admin-added URLs, indexed locally); no web search (approved 2026-10-08) | Phase 11 |
 | D12 | Help panel + tour blend | Proposed: one "? Help" button per page → right-side help panel (full-screen on phones); tours offer "Read this instead"; articles offer "Show me how" | Phase 3 |
+| D13 | Auth across stacks | Proposed: a ChurchOS **auth contract** in the domain model (objects, flows, endpoints, error codes, cookie rules, password-hash export format). Each backend implements it with its framework's vetted built-in auth. No external identity provider. Independently reviewed 2026-10-09 | Phase 3 |

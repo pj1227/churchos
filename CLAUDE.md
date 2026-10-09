@@ -177,8 +177,11 @@ checked server-side. Frontend guards are UX only.
 
 ## Security requirements (always enforce)
 
-- **Sessions:** HttpOnly, Secure, SameSite cookies only. No auth tokens in
-  `localStorage`, `sessionStorage` or JS-readable cookies.
+- **Sessions:** server-side sessions in a host-only `__Host-` cookie (Secure, HttpOnly,
+  SameSite=Lax, no Domain). No credentials in `localStorage`, `sessionStorage` or
+  JS-readable cookies. The CSRF token cookie is JS-readable by design and is not a credential.
+- **Auth contract:** every backend implements the auth contract in DOMAIN-MODEL §5.0
+  using its framework's own vetted auth. No hand-written session, token or crypto code.
 - **CSRF protection** on every state-changing request
 - **Passwords:** PHP `password_hash` (Argon2id/bcrypt); login throttling; two-factor
   sign-in for staff and above (PLAN D9)

@@ -182,6 +182,38 @@ Syncs never overwrite staff edits.
 
 ## 5. Core platform domain (Phase 3)
 
+### 5.0 Auth contract (Phase 3) *(outline, ✅ D7 / proposed D13)*
+
+The contract is the same for every backend. Each backend implements it with its
+framework's own vetted auth (Laravel: Sanctum + Fortify; Django: `contrib.auth` +
+allauth MFA; Drupal: core user + TFA; FastAPI: session middleware + a CSRF library).
+
+- **Flows:** CSRF bootstrap · sign in · 2FA challenge · sign out · current user ·
+  password reset · invite acceptance · 2FA enrol/disable (requires password
+  re-confirmation) · admin reset of another user's 2FA (audited)
+- **Endpoints** (under `/api/auth/`): `GET csrf`, `POST sign-in`,
+  `POST two-factor/challenge`, `POST sign-out`, `GET me` (→ `Envelope<User>`),
+  `POST password/forgot`, `POST password/reset`, `POST invites/{token}/accept`,
+  `POST two-factor`, `DELETE two-factor`, `POST password/confirm`
+- **Error codes:** `AUTH_INVALID_CREDENTIALS`, `AUTH_TWO_FACTOR_REQUIRED`,
+  `AUTH_TWO_FACTOR_INVALID`, `AUTH_THROTTLED`, `AUTH_CSRF_MISMATCH`,
+  `AUTH_SESSION_EXPIRED`, `AUTH_PASSWORD_CONFIRMATION_REQUIRED`, `AUTH_FORBIDDEN`
+  (each backend maps its native responses, e.g. Laravel's 419, onto these)
+- **Cookies:** session = `__Host-churchos_session` (Secure, HttpOnly, SameSite=Lax,
+  Path=/, no Domain). CSRF: one fixed cookie/header pair for every backend
+  (proposed `XSRF-TOKEN` / `X-XSRF-TOKEN`; Django is configured to match).
+- **Session rules:** ID regenerated on sign-in and on role change; idle and absolute
+  timeouts (values set in Phase 3).
+- **Passwords:** stored as standard hash strings; canonical form **Argon2id (PHC
+  format)**, bcrypt accepted. A documented **user export/import format** lets a church
+  move between backends without password resets. CI tests that hashes produced by one
+  language verify in the others.
+- **Objects:** `User` (§5.1), `TwoFactorEnrollment` (enabled, confirmedAt; the secret is
+  never transported), `RecoveryCode` (shown once, then stored only hashed),
+  `ExternalIdentity` (provider, subject, linkedAt — Phase 10)
+- **Authorization** (role ranks, "2FA required for staff+") lives in each language's
+  native core, never in framework code.
+
 ### 5.1 User
 
 | Field | Type | Notes |
