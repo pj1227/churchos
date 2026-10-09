@@ -212,7 +212,12 @@ enough. Phases 8–12 are outlines and will be planned in detail when they come 
 
 - [x] Push all unpushed branches; tag `archive/fastapi-0.x` at `main` (2026-10-07)
 - [ ] Owner reviews and approves PLAN.md, CLAUDE.md, DOMAIN-MODEL.md drafts
-- [ ] Decisions D1–D17 resolved and recorded in §Decisions
+- [x] Decisions D1–D17 resolved and recorded in §Decisions (2026-10-10)
+- [x] CI green on PR #80 (ruff pinned to 0.15.15)
+- [ ] **Gate — owner:** Railway auto-deploy disconnected from this repo
+  ([runbook](docs/runbooks/github-repository.md) N0). **No Phase 1 code until this is done.**
+- [ ] **Gate — owner:** GitHub settings N1–N6 applied (required checks, merge methods,
+  classic protection removed, auto-delete branches, security features, read-only token)
 - [ ] `docs/replan` merged to `dev`
 
 ---

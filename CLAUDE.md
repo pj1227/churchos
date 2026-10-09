@@ -61,6 +61,11 @@ change "looks small".
 9. **CI/CD for everything that can be automated.** Lint, static analysis, tests,
    builds, deploys, migrations and post-deploy health checks run in GitHub Actions.
    Manual steps are temporary and written up as a runbook.
+   - **Never merge on red.** Every CI job is a required check in the branch rulesets
+     ([runbook](docs/runbooks/github-repository.md)); a failing check is fixed, not bypassed.
+   - **Pin versions.** Every dependency and tool (linters, formatters, test runners,
+     GitHub Actions) is pinned by lockfile or exact version, so a passing build can't
+     start failing by itself. Upgrades arrive as their own reviewed PRs.
 10. **Done means live.** A phase is complete only when it has been verified by the
     owner in the UI on test.libbynaz.org **and** released to libbynaz.org. Every done
     criterion is checked off at release; ✅ is never set with open items.
