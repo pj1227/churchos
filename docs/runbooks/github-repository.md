@@ -105,7 +105,7 @@ Each item says what to change, what it does, and where to find it.
     still go through CI and your review.
 - **Where:** Settings → Advanced Security (called "Code security" on some accounts).
 
-### ☐ N7 — Pause Dependabot *security updates* until Phase 1 (keep alerts on)
+### ☑ N7 — Pause Dependabot *security updates* until Phase 1 (keep alerts on) — done 2026-10-09
 - **Finding (2026-10-09):** turning on N5 raised **97 open alerts** (14 critical, 48 high,
   28 medium, 7 low), all in the archived JavaScript stack (89 in `pnpm-lock.yaml`;
   e.g. `nuxt`, `vite`, `vitest`, `happy-dom`, `brace-expansion`). Dependabot opened its
@@ -118,7 +118,7 @@ Each item says what to change, what it does, and where to find it.
   lockfiles (P4).
 - **No impact on libbynaz.org:** the live site isn't built from this repo.
 
-### ☐ N8 — Shut down the old live services (moved earlier from P3)
+### ☑ N8 — Shut down the old live services (moved earlier from P3) — done 2026-10-09
 - The old FastAPI API is still publicly reachable on Railway
   (`churchos-production-c6ae.up.railway.app`) and holds the Supabase service key. The old
   Cloudflare Pages sites are built from the vulnerable dependencies above. Nothing uses
@@ -156,8 +156,8 @@ Each item says what to change, what it does, and where to find it.
 - Delete the secrets `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `RAILWAY_TOKEN`.
 - Delete the environments `churchos-staging (Production)` and
   `responsible-spontaneity / production`.
-- Delete the Cloudflare Pages projects `churchos` and `churchos-staging`, and the
-  Railway project if nothing else uses it.
+- ~~Delete the Cloudflare Pages projects and the Railway service~~ done early in N8.
+  Delete the now-empty Railway project `responsible-spontaneity` if it still exists.
 
 ### ☐ P4 — Dependabot version updates
 - Add `.github/dependabot.yml` for npm, Composer and GitHub Actions: weekly, grouped
@@ -189,6 +189,7 @@ Each item says what to change, what it does, and where to find it.
 |---|---|---|
 | 2026-10-09 | Claude Code | Initial audit (§1); recommendations N0–N6, P1–P6 |
 | 2026-10-09 | Claude Code | Found the Cloudflare GitHub App also building this repo (N0b). The red ✕ on `main` (d20348d) is Railway's own deploy cancelled by the simultaneous workflow deploy |
+| 2026-10-09 | Owner + Claude Code | N7 done (#81 closed unmerged; security updates off, alerts on). N8 done: Railway service `churchos` deleted (old API URL returns 404); Cloudflare Pages `churchos` (`churchos-bq2.pages.dev`) and `churchos-staging` deleted after clearing ~330 old deployments with a one-off API script (both hostnames no longer resolve); old Supabase project `churchos-libbynaz` paused (resumable until 2027-10-09). All "Do now" items complete |
 | 2026-10-09 | Owner + Claude Code | N4 and N5 done (verified via API: auto-delete on, rebase off; Dependabot alerts + security updates, secret scanning, push protection, private vulnerability reporting on). 97 Dependabot alerts in the archived JS stack, 0 secret-scanning alerts; Dependabot PR #81 opened against `main`. Added N7 and N8 |
 | 2026-10-09 | Owner | N3 done (classic protection removed from `main` and `staging`, verified via API). N0b done: Cloudflare Workers and Pages app uninstalled (`churchos` was its only repo) |
 | 2026-10-09 | Owner + Claude Code | N1 + N2 done: rulesets re-imported (new ids `protect-dev` 24813168, `protect-staging` 24813175, `protect-main` 24813187); both CI checks required from GitHub Actions (app 15368), merge methods squash → `dev`, merge commit → `staging`/`main`. Verified via API; PR #80 mergeable and clean. N6 was already read-only. Ruleset JSON exports kept in the owner's `Documents/GitHub/churchos` folder (`*.original.json` = before) |
