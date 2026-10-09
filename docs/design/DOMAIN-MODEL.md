@@ -113,6 +113,9 @@ Syncs never overwrite staff edits.
 
 ## 4. Operational domain (every response)
 
+**Paths:** every endpoint path in this document is relative to the deployment's API
+base URL, `{apiBase}` (e.g. `https://api.libbynaz.org` or `https://example.org/api`).
+
 ### Envelope\<T\> — every successful response
 
 | Field | Type | Notes |
@@ -162,7 +165,7 @@ Syncs never overwrite staff edits.
 | `version` | `String` (semver) | `1.0.0` |
 | `codename` | `String?` | `Kootenai` |
 
-### HealthStatus — `GET /api/health`
+### HealthStatus — `GET {apiBase}/health`
 
 | Field | Type | Notes |
 |---|---|---|
@@ -191,7 +194,7 @@ allauth MFA; Drupal: core user + TFA; FastAPI: session middleware + a CSRF libra
 - **Flows:** CSRF bootstrap · sign in · 2FA challenge · sign out · current user ·
   password reset · invite acceptance · 2FA enrol/disable (requires password
   re-confirmation) · admin reset of another user's 2FA (audited)
-- **Endpoints** (under `/api/auth/`): `GET csrf`, `POST sign-in`,
+- **Endpoints** (under `{apiBase}/auth/`): `GET csrf`, `POST sign-in`,
   `POST two-factor/challenge`, `POST sign-out`, `GET me` (→ `Envelope<User>`),
   `POST password/forgot`, `POST password/reset`, `POST invites/{token}/accept`,
   `POST two-factor`, `DELETE two-factor`, `POST password/confirm`
@@ -199,9 +202,13 @@ allauth MFA; Drupal: core user + TFA; FastAPI: session middleware + a CSRF libra
   `AUTH_TWO_FACTOR_INVALID`, `AUTH_THROTTLED`, `AUTH_CSRF_MISMATCH`,
   `AUTH_SESSION_EXPIRED`, `AUTH_PASSWORD_CONFIRMATION_REQUIRED`, `AUTH_FORBIDDEN`
   (each backend maps its native responses, e.g. Laravel's 419, onto these)
-- **Cookies:** session = `__Host-churchos_session` (Secure, HttpOnly, SameSite=Lax,
-  Path=/, no Domain). CSRF: one fixed cookie/header pair for every backend
-  (proposed `XSRF-TOKEN` / `X-XSRF-TOKEN`; Django is configured to match).
+- **Cookies:** session = `__Host-churchos_session`, set by the API host only (Secure,
+  HttpOnly, SameSite=Lax, Path=/, no Domain).
+- **CSRF (✅ D16):** `GET csrf` returns `Envelope<{csrfToken: String}>`. The client holds
+  the token in memory and sends it as the `X-CSRF-TOKEN` header on every
+  state-changing request. No CSRF cookie is read by page scripts, so the same flow
+  works in both API layouts. Each backend is configured to accept this header
+  (Laravel and Django both support a header token).
 - **Session rules:** ID regenerated on sign-in and on role change; idle and absolute
   timeouts (values set in Phase 3).
 - **Passwords:** stored as standard hash strings; canonical form **Argon2id (PHC
@@ -375,14 +382,16 @@ externalId, url).
 
 ### 6.5 Knowledge sources for the AI help assistant (Phase 11) *(outline)*
 
-- `KnowledgeSource`: id, kind `Enum{helpArticles|siteContent|sermonTranscripts|url}`,
-  label, url `Url?` (required for `url`), enabled, refresh `Schedule?`, lastIndexedAt?,
+- `KnowledgeSource`: id, kind `Enum{helpArticles|siteContent|sermonTranscripts|page|section|sitemap}`
+  (✅ D17), label, url `Url?` (required for `page`, `section`, `sitemap`), pathPrefix
+  `String?` (`section`/`sitemap` filter), maxPages `Integer?` (required for `section`/`sitemap`), enabled, refresh `Schedule?`, lastIndexedAt?,
   status `Enum{ok|failed|pending}`
 - `AssistantAnswer`: text, citations `List<Citation>` (never empty unless
   `outOfScope = true`), outOfScope `Boolean`
 - `Citation`: title, url, sourceId
 - Invariant: answers are generated only from passages retrieved from enabled sources
-  in our own index. No live web access, no personal data.
+  in our own index. No live web access, no personal data. Fetching honours `robots.txt`
+  and never leaves the host of the source URL.
 
 ---
 
@@ -439,4 +448,4 @@ An implementation conforms when:
 
 | Version | Date | Change |
 |---|---|---|
-| 0.1 *(draft)* | 2026-10-07 | Notation, universal rules, operational objects, core platform objects; module outlines. 2026-10-08: nested repo paths; help, release notes, tours and knowledge-source outlines. 2026-10-09: auth contract; scheduled tasks moved to §5.7; diagnostics §5.8 |
+| 0.1 *(draft)* | 2026-10-07 | Notation, universal rules, operational objects, core platform objects; module outlines. 2026-10-08: nested repo paths; help, release notes, tours and knowledge-source outlines. 2026-10-09: auth contract; scheduled tasks moved to §5.7; diagnostics §5.8. 2026-10-10: paths relative to `{apiBase}`; CSRF via endpoint; knowledge source kinds |

@@ -130,13 +130,15 @@ See [PLAN.md §2](PLAN.md#2-architecture-at-a-glance). Two rules:
 
 ## Environments & hosting
 
-| Env | URL | Deployed from |
-|---|---|---|
-| dev | `localhost` | working branch |
-| test | `https://test.libbynaz.org` | `staging` (automatic) |
-| prod | `https://libbynaz.org` | `main` (automatic) |
+| Env | Site + admin | API | Deployed from |
+|---|---|---|---|
+| dev | `localhost` | `localhost:8000` | working branch |
+| test | `https://test.libbynaz.org` | `https://api.test.libbynaz.org` | `staging` (automatic) |
+| prod | `https://libbynaz.org` | `https://api.libbynaz.org` | `main` (automatic) |
 
-Per environment: `/` = public site, `/admin` = admin, `/api` = Laravel. Laravel code
+Per environment: `/` = public site, `/admin` = admin. The API runs on an `api.`
+subdomain (Libby) or at `/api` on the same domain; the layout is configuration
+(PLAN D16), and every API path is written relative to `{apiBase}`. Laravel code
 lives outside `public_html`. Background work runs from one cPanel cron entry (every
 minute) that invokes the ChurchOS scheduler. Secrets live only in server-side `.env`
 files and GitHub Actions secrets, never in git.
@@ -163,7 +165,7 @@ creeks, lakes and mountains), one per minor release: **1.0.0 Kootenai** (cutover
 1.3.0 Quartz → … → 2.0.0 Yaak (first breaking change). Version map: PLAN.md §2.
 
 `version.json` is the only place the version is written. The site footer, the admin
-badge and `GET /api/health` read it; they never hardcode it.
+badge and `GET {apiBase}/health` read it; they never hardcode it.
 
 ---
 
@@ -177,12 +179,14 @@ checked server-side. Frontend guards are UX only.
 
 ## Security requirements (always enforce)
 
-- **Sessions:** server-side sessions in a host-only `__Host-` cookie (Secure, HttpOnly,
-  SameSite=Lax, no Domain). No credentials in `localStorage`, `sessionStorage` or
-  JS-readable cookies. The CSRF token cookie is JS-readable by design and is not a credential.
+- **Sessions:** server-side sessions in a host-only `__Host-` cookie on the API host
+  (Secure, HttpOnly, SameSite=Lax, no Domain). Never set cookies on `.libbynaz.org`,
+  so production cookies can't reach test. No credentials in `localStorage`,
+  `sessionStorage` or JS-readable cookies.
+- **CSRF:** the token comes from `GET {apiBase}/auth/csrf`, is held in memory, and is
+  sent as the `X-CSRF-TOKEN` header on every state-changing request
 - **Auth contract:** every backend implements the auth contract in DOMAIN-MODEL §5.0
   using its framework's own vetted auth. No hand-written session, token or crypto code.
-- **CSRF protection** on every state-changing request
 - **Passwords:** PHP `password_hash` (Argon2id/bcrypt); login throttling; two-factor
   sign-in for staff and above (PLAN D9)
 - **Least privilege:** the browser never talks to the database. All data access
@@ -196,7 +200,8 @@ checked server-side. Frontend guards are UX only.
 - **Prayer requests are `pending` until a person approves them.** Automation may only label.
 - **Card data never touches our servers.** Stripe.js handles all card input.
 - **Dependencies:** `composer audit` and `pnpm audit` run in CI; findings block release
-- **CORS:** same-origin by default; any allowed origin is listed explicitly
+- **CORS:** only the environment's own site origin is allowed, with credentials; no
+  wildcards (not needed at all in the same-origin layout)
 - **Database character set:** `utf8mb4` everywhere (the host default is `latin1`)
 - **Logging:** only through the logging port (PSR-3 in PHP). Passwords, tokens, secret
   values, prayer text and personal data are redacted before anything is written. Users

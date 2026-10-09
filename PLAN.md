@@ -69,27 +69,33 @@ churchos/
 
 ### Environments
 
-| Env | Where | Deployed from | Purpose |
-|---|---|---|---|
-| dev | `localhost` | your working branch | Development; full stack runs locally |
-| test | `test.libbynaz.org` | `staging` branch (automatic) | Release candidate; you verify in the UI here |
-| prod | `libbynaz.org` | `main` branch (automatic) | Live site |
+| Env | Site + admin | API | Deployed from | Purpose |
+|---|---|---|---|---|
+| dev | `localhost:3000` / `:3001` | `localhost:8000` | your working branch | Development; full stack runs locally |
+| test | `test.libbynaz.org` | `api.test.libbynaz.org` | `staging` branch (automatic) | Release candidate; you verify in the UI here |
+| prod | `libbynaz.org` | `api.libbynaz.org` | `main` branch (automatic) | Live site |
 
-### Hosting topology (Namecheap Stellar Business — ✅ D2)
+### Hosting topology (Namecheap Stellar Business — ✅ D2, amended by ✅ D16)
 
-One domain per environment serves all three apps, so there is no cross-origin
-setup and login cookies work simply:
+ChurchOS supports **two API layouts**, chosen per deployment by configuration. Every
+frontend reads the API base URL from its config, and every contract path is relative
+to that base.
 
-| Path | Serves |
-|---|---|
-| `/` | `apps/web/nuxt` static build |
-| `/admin` | `apps/admin/nuxt` static build |
-| `/api` | Laravel (its `public/` entry point only) |
+| Layout | Site | Admin | API base URL | Use when |
+|---|---|---|---|---|
+| **API subdomain** (Libby) | `https://libbynaz.org/` | `https://libbynaz.org/admin` | `https://api.libbynaz.org` | Default. The subdomain's document root is Laravel's `public/` folder, the standard cPanel setup, and the API can move servers with a DNS change |
+| **Same-origin path** | `https://example.org/` | `https://example.org/admin` | `https://example.org/api` | Hosts where adding a subdomain is awkward. No CORS needed |
 
-- Laravel code lives **outside** `public_html`; only its entry point is exposed.
+- Laravel code lives **outside** `public_html`; only its `public/` entry point is exposed.
+- **Subdomain layout rules** (enforced by tests):
+  - CORS allows only the environment's own site origin (e.g. `https://libbynaz.org`), with credentials; no wildcards. Preflight answers are cached (`Access-Control-Max-Age`).
+  - The session cookie is **host-only on the API host** and is never set on `.libbynaz.org`, so production sign-ins can't reach test.libbynaz.org.
+  - The CSRF token comes from `GET {apiBase}/auth/csrf` in the response body. The frontend keeps it in memory and sends it in the `X-CSRF-TOKEN` header; no cookie is shared across subdomains.
+- CI's end-to-end tests run the subdomain layout (Libby's). A contract test covers the
+  same-origin layout's routing.
 - Deploys are **atomic**: GitHub Actions builds, uploads a new release directory over
   SSH, runs `php artisan migrate --force`, switches a `current` symlink, checks
-  `/api/health`, and rolls back if that fails.
+  `{apiBase}/health`, and rolls back if that fails.
 - Background work runs from **one cPanel cron entry** (every minute) that invokes
   the ChurchOS scheduler. The scheduler decides what is actually due (see Phase 3, release 0.4.0).
 - Host facts recorded 2026-10-07: PHP selector offers 8.2–8.5 (currently 8.1, EOL;
@@ -122,7 +128,7 @@ Semantic versioning with Kootenai River Valley codenames per minor release.
 | 1.4.0+ | TBD: local rivers, creeks, lakes and mountains (e.g. Mount Snowy, Treasure Mountain, Libby Creek, Koocanusa, Purcell) | Phases 8+ |
 | 2.0.0 | Yaak | Reserved for the first breaking change |
 
-`version.json` is the single source. The site footer, admin badge and `GET /api/health`
+`version.json` is the single source. The site footer, admin badge and `GET {apiBase}/health`
 read it at build or run time. They never hardcode it, which was a defect in the archived build.
 
 ---
@@ -135,7 +141,7 @@ A **module** is a self-contained feature bundle:
 |---|---|
 | Domain objects (in DOMAIN-MODEL.md) | `Sermon`, `SermonSeries` |
 | Storage (migrations) | `sermons`, `sermon_series` tables |
-| API routes | `GET /api/sermons`, `PATCH /api/admin/sermons/{id}` |
+| API routes | `GET {apiBase}/sermons`, `PATCH {apiBase}/admin/sermons/{id}` |
 | Admin screens | Sermon list, edit, sync status |
 | Public pages / blocks | `/sermons`, `/sermons/{slug}`, "Latest sermon" block |
 | Settings (typed, validated) | source = `logos`, channel ID = `13608627`, sync schedule |
@@ -206,7 +212,7 @@ enough. Phases 8–12 are outlines and will be planned in detail when they come 
 
 - [x] Push all unpushed branches; tag `archive/fastapi-0.x` at `main` (2026-10-07)
 - [ ] Owner reviews and approves PLAN.md, CLAUDE.md, DOMAIN-MODEL.md drafts
-- [ ] Decisions D1–D15 resolved and recorded in §Decisions
+- [ ] Decisions D1–D17 resolved and recorded in §Decisions
 - [ ] `docs/replan` merged to `dev`
 
 ---
@@ -214,7 +220,7 @@ enough. Phases 8–12 are outlines and will be planned in detail when they come 
 ## Phase 1 — Foundation: tooling, CI/CD, hosting → 0.1.0
 
 **Goal:** An empty but real system deployed to test and prod by CI, which proves
-every pipe end to end: `GET /api/health` answers on libbynaz.org from Laravel via
+every pipe end to end: `GET https://api.libbynaz.org/health` answers from Laravel via
 the PHP core, and an `/admin` placeholder reads it.
 
 **Repo**
@@ -229,7 +235,7 @@ the PHP core, and an `/admin` placeholder reads it.
 - `libs/ts/native/core`: types generated from the schemas, API client with timeout + error handling
 
 **Apps**
-- `apps/api/laravel`: `GET /api/health` via the core; MariaDB connection check
+- `apps/api/laravel`: `GET {apiBase}/health` via the core; MariaDB connection check; both API layouts (D16) supported by configuration
 - `apps/admin/nuxt`: placeholder page showing version + API health (proves admin → API wiring)
 - `apps/web/nuxt`: placeholder, built but **not** deployed to `/` (the old site stays live)
 
@@ -241,7 +247,7 @@ the PHP core, and an `/admin` placeholder reads it.
 - **Redaction:** passwords, tokens, secrets, prayer text and personal data never reach
   the logs (unit tests prove it)
 - Browser errors from the admin and site are reported to the API (rate-limited, no personal data)
-- **Doctor checks**, as an SSH command (`php artisan churchos:doctor`) and in `GET /api/health`:
+- **Doctor checks**, as an SSH command (`php artisan churchos:doctor`) and in `GET {apiBase}/health`:
   PHP version and extensions, Argon2 support, `utf8mb4`, writable folders, cron heartbeat
   seen recently, mail settings, app URL. Each failure explains the fix in plain language.
 
@@ -252,20 +258,28 @@ the PHP core, and an `/admin` placeholder reads it.
 
 **CI/CD**
 - CI on PRs: lint · static analysis · unit · contract · e2e, with PHP 8.4 + MariaDB 11.4 service containers to mirror the host
-- Deploy workflows: `staging` → test.libbynaz.org, `main` → libbynaz.org (`/api`, `/admin` only)
+- Deploy workflows: `staging` → test.libbynaz.org + api.test.libbynaz.org, `main` → libbynaz.org (`/admin` only) + api.libbynaz.org
 - Atomic release + migrate + health check + automatic rollback
 
 **Hosting (done with you, documented as a runbook)**
 - Switch PHP to 8.4 and confirm extensions (incl. `tokenizer`, `xml`, `xmlwriter`, `zip`)
-- Create `test.libbynaz.org`, the two databases (utf8mb4), and a deploy SSH key
+- Create the subdomains `test.libbynaz.org`, `api.libbynaz.org` and `api.test.libbynaz.org`
+  (API document roots → Laravel `public/`), with free SSL certificates on each
+- Create the two databases (utf8mb4) and a deploy SSH key
 - Add the cron entry; set server-side `.env` files (never in git)
+- **First setup help articles** in `docs/help/setup/`, written while we do this together:
+  e.g. "Choose PHP 8.4 in cPanel", "Create an API subdomain on cPanel", "Create the
+  database", "Add the ChurchOS cron job", "Add a deploy SSH key". Numbered steps, plain
+  language, and links to the provider's own instructions. They read well on GitHub
+  before ChurchOS is installed and become part of the Phase 12 setup guide.
 
 **Done when**
 - [ ] CI green on a PR, with every job required
-- [ ] Merge to `staging` deploys test automatically; `https://test.libbynaz.org/api/health` returns 0.1.0
-- [ ] Merge to `main` deploys prod; `https://libbynaz.org/api/health` returns 0.1.0, and the existing site is untouched
+- [ ] Merge to `staging` deploys test automatically; `https://api.test.libbynaz.org/health` returns 0.1.0
+- [ ] Merge to `main` deploys prod; `https://api.libbynaz.org/health` returns 0.1.0, and the existing site is untouched
 - [ ] A failed health check after deploy rolls back automatically (demonstrated once on test)
-- [ ] Hosting runbook in `docs/` lets someone repeat the setup
+- [ ] Hosting runbook and the setup help articles let someone repeat the setup
+- [ ] CORS allows only the site's own origin, and the session cookie is host-only on the API (tested on test)
 - [ ] `churchos:doctor` passes on test and prod, and a deliberately broken setting is reported with its fix
 - [ ] A forced error on test shows a reference code that finds the matching log entry
 
@@ -313,12 +327,16 @@ releases so each stays a reviewable size (✅ D15).
   (2FA, password reset, password confirmation), both first-party packages needing
   dependency approval. Thin ChurchOS controllers sit in front of Fortify, so responses
   match the contract (camelCase, our error codes) rather than Laravel's defaults.
-- Session cookie: host-only `__Host-` cookie (Secure, HttpOnly, SameSite=Lax, no
-  Domain), so test.libbynaz.org and libbynaz.org can never share a session. Session ID
-  regenerated on sign-in and role change; idle and absolute timeouts enforced on the
-  server. The CSRF cookie is readable by page scripts by design; it is not a credential.
-- `Referrer-Policy` must stay `strict-origin-when-cross-origin` or looser (Sanctum
-  needs the Origin/Referer header). An e2e test guards this.
+- Session cookie: host-only `__Host-` cookie on the API host (Secure, HttpOnly,
+  SameSite=Lax, no Domain), so test and prod can never share a session. Browsers still
+  send it from libbynaz.org because the site and the API are the same site (one
+  registrable domain). Session ID regenerated on sign-in and role change; idle and
+  absolute timeouts enforced on the server.
+- CSRF token from `GET {apiBase}/auth/csrf`, held in memory, sent as `X-CSRF-TOKEN`
+  (✅ D16). We don't use Laravel's suggested `.libbynaz.org` cookie domain.
+- Sanctum's list of stateful (cookie-using) sites names the environment's site origin.
+  `Referrer-Policy` must stay `strict-origin-when-cross-origin` or looser (Sanctum
+  needs the Origin/Referer header). E2E tests guard both.
 - Passwords hashed with PHP's native `password_hash`: **Argon2id** (confirm the host's
   PHP has Argon2 support in Phase 1; fall back to bcrypt with a 64-character password cap);
   login throttling; password reset and email verification
@@ -504,10 +522,19 @@ overrides survive a re-sync (tested).
 
 ### AI help assistant (Phase 11) — answers only from approved sources
 
-- **Approved sources only**, managed in the admin as a list of *knowledge sources*:
+- **Approved sources only**, managed in the admin as a list of *knowledge sources* (✅ D17):
   ChurchOS help articles · the church's own published content (pages, FAQ, sermon
   transcripts, events) · external resources an admin adds **by URL** (e.g. official
-  Church of the Nazarene pages). Each source can be switched on or off.
+  Church of the Nazarene pages, a hosting provider's help center). Each source can be
+  switched on or off. External sources come in three kinds:
+  - **Page:** one URL, indexed as-is
+  - **Section:** pages under a URL path on the same site (e.g. a provider's cPanel
+    knowledge base), up to a page limit set by the admin
+  - **Sitemap:** pages listed in a site's `sitemap.xml`, filtered by path, up to a page limit
+  A bare index page such as `https://www.namecheap.com/help-center/` is added as a
+  *section* or *sitemap* source, not as a single page, because the index itself holds
+  only links. Fetching follows each site's `robots.txt`, stays on the site that was
+  added, and is built with PHP's own HTTP and HTML tools (no crawler package).
 - **No web search, ever.** External URLs are fetched once by our server, stored and
   indexed in our own database, and refreshed on a schedule (Phase 3 scheduler). At
   question time the assistant only sees passages retrieved from that index.
@@ -565,7 +592,7 @@ Proposed defaults. Each needs your ✅ or a change before the phase that uses it
 | # | Decision | Proposed | Needed by |
 |---|---|---|---|
 | D1 | Repo layout | ✅ Nested: `apps/<role>/<framework>`, `libs/<language>/<platform>/<name>` (approved 2026-10-08) | Phase 1 |
-| D2 | URL layout | ✅ One domain per env: `/`, `/admin`, `/api` (approved 2026-10-08) | Phase 1 |
+| D2 | URL layout | ✅ One domain per env for site and admin (approved 2026-10-08); API placement amended by D16 | Phase 1 |
 | D3 | Release cadence | ✅ Every two weeks (approved 2026-10-08) | Phase 1 |
 | D4 | Version map | ✅ 0.x pre-cutover; **1.0.0 Kootenai = cutover**; one codename per minor release, drawn from local rivers, creeks and mountains (approved 2026-10-08) | Phase 1 |
 | D5 | FastAPI code in the working tree | ✅ Remove; it stays in the archive tag (approved 2026-10-09) | Phase 1 |
@@ -579,3 +606,5 @@ Proposed defaults. Each needs your ✅ or a change before the phase that uses it
 | D13 | Auth across stacks | ✅ (approved 2026-10-09): a ChurchOS **auth contract** in the domain model (objects, flows, endpoints, error codes, cookie rules, password-hash export format). Each backend implements it with its framework's vetted built-in auth. No external identity provider. Independently reviewed 2026-10-09 | Phase 3 |
 | D14 | Diagnostics module | ✅ Logging + reference codes + redaction + doctor checks (Phase 1); admin Diagnostics screen, retention purge and troubleshooting report (Phase 3) (approved 2026-10-09) | Phase 1 |
 | D15 | Scheduler placement | ✅ Scheduled tasks move from Phase 6 to Phase 3; Phase 3 ships as 0.3.0 + 0.4.0 (approved 2026-10-09) | Phase 3 |
+| D16 | API layouts | ✅ Two configurable layouts: API subdomain (Libby: `api.libbynaz.org`, `api.test.libbynaz.org`) or same-origin `/api`. Host-only session cookie on the API host; CSRF token via `GET {apiBase}/auth/csrf` in a header; explicit CORS allow-list (approved 2026-10-10) | Phase 1 |
+| D17 | Knowledge source kinds | ✅ Page, section (URL-path crawl with a page limit) and sitemap; `robots.txt` respected; same-site only (approved 2026-10-10) | Phase 11 |
