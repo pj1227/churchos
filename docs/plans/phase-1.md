@@ -4,7 +4,7 @@
 > session's findings (see "Changes since approval" below). No application code yet.
 > The §12 adjustments are applied to PLAN.md, CLAUDE.md and DOMAIN-MODEL.md in the same PR.
 
-### Changes since approval (2026-10-09 → 2026-10-30)
+### Changes since approval (2026-10-09 → 2026-11-01)
 
 | Where | Change | Why |
 |---|---|---|
@@ -33,6 +33,9 @@
 | §8.1 | Checkpoints 4 and 5 each split in two (4a/4b, 5a/5b) | Owner, 2026-10-26: smaller reviews |
 | §8.1 | Checkpoint 8 added: redaction rule 2b (passwords in URLs) | Owner, 2026-10-31 |
 | §5, §6.4 | Clients trim error reports to 8 KB: stack lines from the end, then the message; the TS core does it | Owner, 2026-10-31 |
+| §6.3, §7, §8.2, §9, §11 | Iteration 1.5 detailed: decisions E1–E7, seven checkpoints (§8.2), the MariaDB CI image, risks R12–R15 | Owner, 2026-11-01 |
+| §8 | From 1.5 on, the owner types the logic code from a worked example; Claude writes the plumbing and reviews the owner's diff | Owner, 2026-11-01: to understand how the code fits together |
+| §6.3, PLAN D20 | Phase 1 tests MariaDB only; PostgreSQL gets its CI job and adapters in Phase 3, before 1.0 | Owner, 2026-11-01 (1.5 E4): "supported" means tested |
 
 ---
 
@@ -180,19 +183,62 @@ Objects already in DOMAIN-MODEL §4 that Phase 1 implements: `Envelope<T>`,
 - `VersionReader`: reads `version.json`
 
 ### 6.3 `apps/api/laravel` (thin adapter)
-- Laravel 13 skeleton, **trimmed**: remove Sail (Docker), Tinker, Pail, Faker, Mockery
-  and Collision. Fewer dependencies, nothing Phase 1 needs.
-- Routes: `GET /health`, `POST /diagnostics/client-errors`. Route prefix from config,
-  so the **same build** works as `api.libbynaz.org/health` or `example.org/api/health` (D16).
-- Middleware: request ID, CORS allow-list from config (no wildcards), JSON-only responses
-- Exception handler: every error becomes an `ErrorEnvelope` with a reference code;
-  never a stack trace or HTML error page, even with debug on
-- Logging: a custom log channel using the core `JsonLogger` (daily JSON log files, every
-  entry redacted, the request ID added)
-- `php artisan chapelcore:doctor` (exit code ≠ 0 on failure, used by the deploy) and
-  `chapelcore:heartbeat` (run by cron every minute; records the time for the `scheduler` check)
-- MariaDB connection forced to `utf8mb4` / `utf8mb4_unicode_ci`
-- Rate limiting via Laravel's built-in limiter on the database cache store (no Redis on shared hosting)
+Laravel is wiring only: every rule lives in the PHP core (CLAUDE.md step 6).
+
+- **Skeleton:** `laravel/framework` 13.39.0 from the official `laravel/laravel` 13.11.0
+  template, **trimmed** to an API: no Sail (Docker), Tinker, Pail, Pao, Faker, Mockery or
+  Collision; no Vite, Tailwind, `package.json`, views or web routes; no users, jobs or
+  sessions migrations. Fewer dependencies, nothing Phase 1 needs.
+- **Our packages:** requires `chapelcore/core` and, for tests, `chapelcore/contract` as
+  Composer path packages, pinned through the path repository's `versions` option as the
+  core pins the contract. Locally they are symlinks; the deploy build (1.9) copies them
+  with `COMPOSER_MIRROR_PATH_REPOS=1` (R14).
+- **Routes:** `GET /health`, `POST /diagnostics/client-errors`. The prefix comes from
+  `CHAPELCORE_API_PREFIX`: empty gives `api.libbynaz.org/health`, `api` gives
+  `example.org/api/health`, so the **same build** works in both layouts (D16). No sessions
+  or cookies in Phase 1; the routes are stateless.
+- **Request ID:** middleware gives every request a new reference code from the core's
+  `RequestIdGenerator`, returned as `X-Request-Id` and `meta.requestId` and added to every
+  log line of that request. An incoming `X-Request-Id` is ignored, so callers can't plant
+  codes in our logs (E3).
+- **Errors:** every error becomes an `ErrorEnvelope` with the reference code: 404
+  `NOT_FOUND`, 405 `METHOD_NOT_ALLOWED`, 413 `PAYLOAD_TOO_LARGE`, 422 `VALIDATION_FAILED`,
+  429 `RATE_LIMITED` (with `Retry-After`), 500 `INTERNAL_ERROR`, and 503
+  `SERVICE_UNAVAILABLE` in maintenance mode. Always JSON, never a stack trace or HTML error
+  page, even with debug on (R13).
+- **Logging:** the default log channel is a custom channel built on the core's
+  `JsonLogger`: daily JSON files in `storage/logs`, every entry redacted, the request's
+  reference code added. If Laravel's log manager needs a Monolog logger, a small Monolog
+  handler passes each record to `JsonLogger` instead (R12).
+- **Health:** `/health` runs the core's `HealthService` with three Laravel adapters: a
+  database ping on the default connection, the heartbeat file, and `StorageProbe` on
+  `storage/`. A `down` result is HTTP 503 with the same `Envelope<HealthStatus>`, not an
+  error envelope.
+- **Heartbeat:** `php artisan chapelcore:heartbeat` (cron, every minute) writes the time to
+  a file in `storage/`, not the database, so a database outage doesn't also fail the
+  `scheduler` check (E1).
+- **Client errors:** the raw body goes to the core's `ClientErrorReportParser`. An accepted
+  report is logged on the `diagnostics.client` channel at `warning` and answered 202. The
+  rate limit allows 10 reports per minute per client IP, using Laravel's built-in limiter on
+  the database cache store (no Redis on shared hosting); its `cache` table is the app's first
+  migration. Trusted proxies come from `CHAPELCORE_TRUSTED_PROXIES` (empty by default), so
+  the limit is keyed on the real client IP.
+- **CORS:** Laravel's built-in `HandleCors`, with exact origins from
+  `CHAPELCORE_CORS_ORIGINS` (comma-separated), credentials allowed, no wildcards. Empty in
+  the same-domain layout.
+- **Environment:** `CHAPELCORE_ENV=dev|test|production` (default `dev`) names the
+  environment for the doctor; Laravel's own `APP_ENV` stays Laravel's (E2).
+- **Doctor:** `php artisan chapelcore:doctor` runs the core's nine Phase 1 checks with
+  Laravel adapters (configuration, the database's and tables' character sets, certificate
+  expiry dates read from the hosts in `CHAPELCORE_TLS_HOSTS`). Plain-text output; exit code 1
+  when any check is `down`, which the deploy relies on. A `--json` option can come with the
+  Phase 3 diagnostics screen (E5).
+- **Database:** the MariaDB connection is forced to `utf8mb4` / `utf8mb4_unicode_ci`.
+  Phase 1 tests MariaDB only; PostgreSQL support and its CI job come in Phase 3 (E4, PLAN D20).
+- **Version:** read from `version.json` through the core's `VersionReader`; the path comes
+  from config and defaults to the repository root.
+- **Checks:** Pint with the Laravel preset; PHPStan at max level with Larastan, the same bar
+  as the core (E6).
 
 ### 6.4 `libs/ts/native/core`
 - TypeScript types **generated** from the schemas. CI fails if regenerating changes
@@ -219,7 +265,7 @@ Objects already in DOMAIN-MODEL §4 that Phase 1 implements: `Envelope<T>`,
 |---|---|---|
 | **Contract self-tests** | TS (ajv) and PHP (opis) | every valid fixture passes, every invalid one fails, **in both languages** |
 | **PHP core unit** | PHPUnit | value-object invariants; serializer camelCase + always-present nulls; worst-status rule; request-ID format; redactor strips a password, a token, an email; doctor gives a fix for a missing extension |
-| **Laravel feature** | PHPUnit + real MariaDB | `/health` 200 and schema-valid; DB down → 503 `down`; unknown route → `NOT_FOUND` envelope with reference; thrown exception → `INTERNAL_ERROR`, no stack trace, log entry has the same reference and no secrets; client error accepted (202), oversized → `PAYLOAD_TOO_LARGE`, 11th in a minute → `RATE_LIMITED`; both route layouts; CORS allows only the configured origin; tables are utf8mb4 |
+| **Laravel feature** | PHPUnit + real MariaDB; every response checked against its schema | `/health` 200 and schema-valid; DB down → 503 `down`; stale heartbeat → `degraded`; unknown route → `NOT_FOUND` envelope with reference; wrong method → `METHOD_NOT_ALLOWED`; maintenance mode → `SERVICE_UNAVAILABLE`; thrown exception → `INTERNAL_ERROR`, no stack trace, log entry has the same reference and no secrets; client error accepted (202) and logged, oversized → `PAYLOAD_TOO_LARGE`, invalid → `VALIDATION_FAILED` with field messages, 11th in a minute → `RATE_LIMITED`; both route layouts; CORS allows only the configured origin; tables are utf8mb4; doctor exits 1 when a check is `down` |
 | **TS unit** | Vitest | API client: timeout, non-JSON reply, error envelope, success |
 | **Component** | Vitest + Vue Test Utils | admin page shows ok / degraded / down / unreachable states |
 | **Contract suite** | against the **running** API | every real response validates against its schema |
@@ -234,13 +280,20 @@ Each iteration is its own branch from `dev` (`feature/phase-1-N-description`) an
 own PR, so reviews stay small. In each: I show the tests, you approve, I write them and
 show them failing; then I show the code, you approve, I write it and the tests pass.
 
+**From 1.5 on (owner, 2026-11-01):** I still write the tests and the plumbing (skeleton,
+dependencies, configuration, CI). For the logic (middleware, controllers, adapters,
+commands) I show the complete code as a worked example with its explanation, and **you
+type it in**. You run the tests, I review your diff and run the checks, and then it's
+committed. Hints instead of worked examples come after the prayer board and the first
+sermons iteration ship.
+
 | # | Iteration | Delivers | Needs you for |
 |---|---|---|---|
 | 1.1 | **Repo reset & toolchain** | Old tree removed; workspace skeleton; pinned Node/pnpm/PHP tool versions; new `ci.yml` with stable job names; `dependabot.yml`; GitHub P2–P6 | Approving dependencies (§9); updating rulesets to new check names |
 | 1.2 | **Hosting spike + setup** | Prove the risky hosting assumptions on **test** with a throwaway `hello.php` (§11), then do the real setup; **automatic Let's Encrypt certificates for all five hostnames, including www (R10)**; `hosting.md` runbook; setup help articles *(moved to 1.9, owner 2026-10-19)* | The cPanel session |
 | 1.3 | **Contract** | Schemas, fixtures, OpenAPI; self-tests in both languages. *Built 2026-10-21: 18 schemas, 103 fixtures, `openapi.json`, 223 self-tests each in TypeScript and PHP; `composer audit` joined CI here, not in 1.4* | Review |
 | 1.4 | **PHP core** | Everything in §6.2, in eight checkpoints (§8.1). *Built 2026-10-30: 414 tests on PHP 8.4 and 8.5, PHPStan at max level; the core's Pint, PHPStan, PHPUnit and `composer audit` run in CI* | Review |
-| 1.5 | **Laravel API** | Everything in §6.3 | Review |
+| 1.5 | **Laravel API** | Everything in §6.3, in seven checkpoints (§8.2) | Typing the logic code; review |
 | 1.6 | **TS core** | Generated types + API client | Review |
 | 1.7 | **Admin + web placeholders** | §6.5 | Review |
 | 1.8 | **Contract suite + e2e in CI** | Playwright against the real stack | Review |
@@ -264,6 +317,21 @@ code is shown and written (CLAUDE.md step 4).
 | 6 | ClientErrorReport parser | An oversized report gives field messages |
 | 7 | Docs, CHANGELOG, commands; PR | Full CI-equivalent run |
 | 8 | Redaction rule 2b: passwords in URLs | A connection error logged with its password hidden |
+
+### 8.2 Iteration 1.5 checkpoints
+
+Each checkpoint is one commit: its tests are written and seen failing first, then the
+plumbing is written and the logic is typed in by you (§8).
+
+| # | Checkpoint | You type | See it yourself |
+|---|---|---|---|
+| 0 | Docs PR: this plan | — | Read the PR |
+| 1 | Skeleton, trimmed; `composer.json`; Pint and PHPStan configs; CI jobs with the MariaDB service; Dependabot; `.env.example` | — (a guided tour of the folders instead) | `php artisan about` lists our packages; CI is green |
+| 2 | Request ID, JSON-only errors, the `JsonLogger` log channel | The middleware, the exception rendering, the log channel | `curl localhost:8000/nope` → `NOT_FOUND` with a reference code you then find in the log |
+| 3 | `/health`, the heartbeat command, utf8mb4, both route layouts | The controller, the three adapters, the provider wiring, the command | **`/health` in your browser**; stop MariaDB → `down` |
+| 4 | Client-error intake, rate limit (cache migration), CORS | The controller, the rate limiter | `curl` a report → 202 and a log line; the 11th → 429 |
+| 5 | `chapelcore:doctor` with its Laravel adapters | The charset and certificate adapters, the command | Run it; with `APP_URL=http://…` it reports `down` with its fix and exits 1 |
+| 6 | Docs: runbook (local database, `.env`, `artisan serve`), CLAUDE.md commands, CHANGELOG; PR ready | — | Full CI-equivalent run |
 
 ---
 
@@ -305,6 +373,11 @@ pinned exactly. **Nothing is added until you approve it.**
 (Playwright reports) — official GitHub/pnpm actions. `shivammathur/setup-php` (MIT) —
 the standard way to install PHP 8.5/8.4 + extensions in CI. **No third-party deploy action:**
 deploys use the runner's own `ssh`, `scp` and `tar`.
+
+### CI service image — ✅ approved by owner 2026-11-01 (1.5 E7)
+| Image | Version | Used for | Why | Licence |
+|---|---|---|---|---|
+| `mariadb` (Docker Official Image) | 11.4 patch matching the host, pinned by exact tag and digest | the real database for `test-php` | Ubuntu's packages are 10.11; MariaDB's own apt repository is slower and harder to pin | GPL-2.0 |
 
 ### Things deliberately *not* added
 Docker/Sail · Redis · a static-file server (CI serves the built admin with PHP's
@@ -369,6 +442,10 @@ port, user, key and known-hosts entry.
 | R9 | A deploy runs while a cron tick runs | Heartbeat is read-only on code; `current` switch is a single atomic rename |
 | R10 | **Certificates don't renew.** Namecheap's free StandardSSL is a one-time, one-year promo per domain (support, 2026-10-12). `libbynaz.org` expires **2026-12-21**; `api.*` in Apr 2027; `test.libbynaz.org` has none | **Let's Encrypt, renewed automatically by cron** (Namecheap support confirms it's supported). Namecheap has no built-in tool and won't troubleshoot third-party certificates, so: **`acme.sh` 3.1.6** (✅ D18, approved 2026-10-16; GPL-3.0, runs from `~/.acme.sh`, installs into cPanel via its `cpanel_uapi` hook, renews daily from its own cron line). ✅ **Done 2026-10-16:** all five hostnames on Let's Encrypt (to 2027-01-14), auto-renewing ~mid-December. Doctor check warns 30 days before any certificate expires |
 | R11 | The host's SSL tools write validation files into each docroot's `.well-known/`, which would vanish on the next deploy | `shared/.well-known/` linked into every release (§10) |
+| R12 | Laravel's log manager may expect a Monolog logger, not the core's PSR-3 `JsonLogger` | Tested first in 1.5 checkpoint 2; fallback: a small Monolog handler that passes each record to `JsonLogger` |
+| R13 | Laravel renders some errors as HTML before our handler runs (early boot, maintenance mode) | JSON forced for every request; a test for every error code |
+| R14 | Composer links path packages instead of copying them, so the links would break in the deploy archive | The 1.9 deploy build sets `COMPOSER_MIRROR_PATH_REPOS=1` |
+| R15 | The Laravel tests need MariaDB running on the development machine | The development runbook covers starting it and creating the test database and user (owner runs the `sudo` steps) |
 
 ---
 

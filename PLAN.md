@@ -376,6 +376,7 @@ releases so each stays a reviewable size (✅ D15).
 - Module registry: list modules, enable/disable, edit module settings (schema-driven
   forms); secret settings encrypted at rest and never returned to the browser
 - Audit log: who changed what, when; viewable by admins
+- **PostgreSQL support** (✅ D20): a CI job running the Laravel tests on PostgreSQL, and per-driver adapters where the SQL differs (the doctor's character-set check first)
 - Email: Laravel mail over the host's SMTP, for password reset and invites
 
 **Done when (0.3.0):** you can sign in to `libbynaz.org/admin`, invite a staff user,
@@ -633,3 +634,4 @@ All decisions approved by the owner (2026-10-08 to 2026-10-09). New decisions ar
 | D17 | Knowledge source kinds | ✅ Page, section (URL-path crawl with a page limit) and sitemap; `robots.txt` respected; same-site only (approved 2026-10-09) | Phase 11 |
 | D18 | Certificates | ✅ Let's Encrypt via `acme.sh` 3.1.6 from the account's cron, installed into cPanel with its `cpanel_uapi` hook; Namecheap's free certificates are one-time only (approved 2026-10-16) | Phase 1 |
 | D19 | Project name | ✅ **ChapelCore** (decided 2026-10-17; formerly ChurchOS). "ChurchOS" collided with a registered US trademark (CHURCHOS, a church-consulting firm) and an unrelated church app; ChurchCore and MinistryOS are used by other church products. Packages `@chapelcore/*` (npm) and `chapelcore/*` (Composer); repo `chapelcore/chapelcore` | Phase 1.1 |
+| D20 | PostgreSQL | ✅ Phase 1 tests MariaDB only; PostgreSQL gets its CI job and adapters in Phase 3 (0.3.0), before 1.0, since "supported" means tested (approved 2026-11-01) | Phase 3 |
