@@ -19,10 +19,10 @@ ChapelCore (formerly ChurchOS) is a modular, open-source church CMS. It is built
 the Nazarene, where it will replace https://libbynaz.org, and is designed so any
 church can self-host it on inexpensive cPanel shared hosting.
 
-**State of the repo (2026-10-30):** Phase 1 in progress; iterations 1.1 (repo reset and
-toolchain) and 1.3 (contract: schemas, fixtures, `openapi.json` and self-tests in
-`libs/shared/contract`) done; 1.4 (PHP core in `libs/php/native/core`) built and in
-review. Its detailed plan is [docs/plans/phase-1.md](docs/plans/phase-1.md);
+**State of the repo (2026-11-01):** Phase 1 in progress; iterations 1.1 (repo reset and
+toolchain), 1.3 (contract: schemas, fixtures, `openapi.json` and self-tests in
+`libs/shared/contract`) and 1.4 (PHP core in `libs/php/native/core`) done; 1.5 (Laravel
+API) planned. Its detailed plan is [docs/plans/phase-1.md](docs/plans/phase-1.md);
 hosting is set up (see [docs/runbooks/hosting.md](docs/runbooks/hosting.md)); no
 Laravel or Nuxt app yet.
 The project was renamed from ChurchOS to ChapelCore on 2026-10-17 (PLAN D19). The project is restarting as
@@ -56,6 +56,10 @@ change "looks small".
    **per checkpoint**: a checkpoint is one commit; its tests are shown, written and seen
    failing first, then its code is shown and written. The interesting parts are
    explained, and each checkpoint ends with a command the owner runs to see it work.
+   From iteration 1.5 on, the owner types the logic code (middleware, controllers,
+   adapters, commands) from the complete worked example; Claude writes the tests and the
+   plumbing (skeleton, dependencies, configuration, CI) and reviews the owner's diff before
+   each commit.
 5. **Dependency approval.** Every new third-party package (Composer, npm, pip, GitHub
    Action) needs explicit owner approval, with: what it does, why the language or
    framework built-ins aren't enough, maintenance and security status, and licence.
@@ -119,7 +123,7 @@ it connects.
 | Public site | Nuxt (Vue 3), statically generated |
 | Admin | Nuxt (Vue 3), static SPA |
 | API | Laravel on **PHP 8.5** (8.4 minimum supported), over `libs/php/native/core` |
-| Database | MariaDB 11.4 (default); PostgreSQL supported via config |
+| Database | MariaDB 11.4 (default); PostgreSQL supported via config, tested from Phase 3 (PLAN D20) |
 | Auth | Laravel session auth via Sanctum (cookie-based SPA auth) |
 | Tests | PHPUnit · Vitest · contract suite · end-to-end browser tests |
 | Monorepo | pnpm workspaces + Turborepo; Composer for PHP |
